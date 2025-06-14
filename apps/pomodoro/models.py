@@ -7,6 +7,7 @@ class Category(models.Model):
     description = models.TextField(blank=True, null=True)
     color = models.CharField(max_length=7, default='#FFFFFF')
     max_daily_executions = models.PositiveIntegerField(default=2)  # Novo campo para o limite
+    executions_today = models.PositiveIntegerField(default=0)
     
     @property
     def current_executions(self):
@@ -51,6 +52,7 @@ class Activity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_executed = models.DateTimeField(null=True, blank=True)
     executions_today = models.IntegerField(default=0)
+    priority = models.IntegerField(default=1) 
 
     class Meta:
         verbose_name = 'Activity'
