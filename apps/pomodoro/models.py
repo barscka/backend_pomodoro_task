@@ -70,11 +70,34 @@ class Activity(models.Model):
         return self.name
 
 
+class Schedule(models.Model):
+    activity = models.ForeignKey(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name='schedules'
+    )
+    scheduled_date = models.DateField()
+    start_time = models.TimeField() 
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('activity', 'scheduled_date')
+        ordering = ['scheduled_date']
+
+    def __str__(self):
+        return f"Schedule {self.id} for {self.scheduled_date}"
+
 class History(models.Model):
     activity = models.ForeignKey(
         Activity,
         on_delete=models.CASCADE,
         related_name='histories'
+    )
+    schedule = models.OneToOneField(  # Relação 1:1
+        Schedule,
+        on_delete=models.CASCADE,
+        related_name='execution_history'
     )
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(null=True, blank=True)
@@ -95,20 +118,3 @@ class History(models.Model):
 
     def __str__(self):
         return f"History {self.id} of {self.activity.name}"
-
-
-class Schedule(models.Model):
-    activity = models.ForeignKey(
-        Activity,
-        on_delete=models.CASCADE,
-        related_name='schedules'
-    )
-    scheduled_date = models.DateField()
-    completed = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['scheduled_date']
-
-    def __str__(self):
-        return f"Schedule {self.id} for {self.scheduled_date}"

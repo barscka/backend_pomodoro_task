@@ -1,6 +1,6 @@
 # apps/pomodoro/serializers.py
 from rest_framework import serializers
-from .models import Activity, Category
+from .models import Activity, Category,  History, Schedule
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,3 +24,25 @@ class ActivitySerializer(serializers.ModelSerializer):
         if obj.category:
             return obj.category.max_daily_executions - obj.category.current_executions
         return None
+
+# apps/pomodoro/serializers.py
+class HistorySerializer(serializers.ModelSerializer):
+    activity_name = serializers.CharField(source='activity.name', read_only=True)
+    category_name = serializers.CharField(source='activity.category.name', read_only=True)
+    completed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = History
+        fields = [
+            'id',
+            'activity_name',
+            'category_name',
+            'start_time',
+            'end_time',
+            'duration',
+            'completed'
+        ]
+
+    def get_completed(self, obj):
+        """Determina se a atividade foi completada baseado no end_time"""
+        return obj.end_time is not None
