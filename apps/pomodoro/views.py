@@ -1,10 +1,14 @@
 # apps/pomodoro/views.py
+import json
 from django.db import models
-from django.db.models import F
+from django.db.models import F, Count
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from datetime import datetime
+from django.utils import timezone
+from pprint import pprint,pformat
 from .models import Activity, Category, History, Schedule
 from .serializers import ActivitySerializer, HistorySerializer
 
@@ -23,21 +27,21 @@ class ActivityViewSet(viewsets.ModelViewSet):
     def next(self, request):
         """
         GET /api/activities/next/
-        Lógica:
-        1. Ignora atividades já concluídas HOJE (history com end_time hoje)
-        2. Ignora categorias que já atingiram 2 execuções HOJE
-        3. Seleciona aleatoriamente entre as atividades restantes
+        Retorna a próxima atividade aleatória seguindo as regras:
+        1. Ignora atividades concluídas hoje
+        2. Ignora categorias com 2+ execuções hoje
+        3. Ordem aleatória entre as elegíveis
         """
+        route = "GET /api/activities/next/"
         try:
             today = timezone.now().date()
 
-            # 1. Busca IDs de atividades já concluídas hoje
+            # 1. Atividades concluídas hoje
             completed_today = History.objects.filter(
                 end_time__date=today
             ).values_list('activity_id', flat=True)
 
-            # 2. Busca categorias que já atingiram o limite (2 execuções hoje)
-            from django.db.models import Count
+            # 2. Categorias esgotadas (2+ execuções hoje)
             exhausted_categories = (
                 History.objects
                 .filter(start_time__date=today)
@@ -50,27 +54,38 @@ class ActivityViewSet(viewsets.ModelViewSet):
             # 3. Busca atividades elegíveis
             eligible_activities = (
                 Activity.objects
-                .exclude(id__in=completed_today)  # Ignora concluídas hoje
-                .exclude(category_id__in=exhausted_categories)  # Ignora categorias esgotadas
-                .order_by('?')  # Ordem aleatória
+                .exclude(id__in=completed_today)
+                .exclude(category_id__in=exhausted_categories)
+                .order_by('?')  # Random order
             )
 
             activity = eligible_activities.first()
 
             if not activity:
-                return Response(
-                    {
-                        "detail": "Nenhuma atividade disponível",
-                        "reason": "Todas as atividades foram concluídas hoje ou categorias atingiram o limite"
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
+                response_data = {
+                    "detail": "Nenhuma atividade disponível",
+                    "reason": "Todas as atividades foram concluídas hoje ou categorias atingiram o limite",
+                    "stats": {
+                        "completed_today": len(completed_today),
+                        "exhausted_categories": len(exhausted_categories)
+                    }
+                }
+                log_response(response_data, status.HTTP_404_NOT_FOUND,route)
+                return Response(response_data, status=status.HTTP_404_NOT_FOUND)
 
-            return Response(self.get_serializer(activity).data)
+            response_data = self.get_serializer(activity).data
+            log_response(response_data, status.HTTP_200_OK,route)
+            return Response(response_data)
 
         except Exception as e:
+            error_data = {
+                "error": "Erro ao buscar próxima atividade",
+                "details": str(e),
+                "timestamp": timezone.now().isoformat()
+            }
+            log_response(error_data, status.HTTP_500_INTERNAL_SERVER_ERROR,route)
             return Response(
-                {"error": f"Erro ao buscar próxima atividade: {str(e)}"},
+                error_data,
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
@@ -78,112 +93,156 @@ class ActivityViewSet(viewsets.ModelViewSet):
     def start(self, request, pk=None):
         """
         POST /api/activities/<id>/start/
-        Inicia uma atividade e retorna:
-        - ID da atividade
-        - Nome da tarefa
-        - Categoria
-        - Data e hora do agendamento criado
+        Cria um novo registro de Schedule com data/hora atual
         """
+        route = "POST /api/activities/<id>/start/"
         try:
             activity = self.get_object()
             now = timezone.now()
             
-            # Verifica limite da categoria
-            if not activity.category.can_execute_more():
+            # Verifica se já existe um schedule não completado para hoje
+            existing_schedule = Schedule.objects.filter(
+                activity=activity,
+                scheduled_date=now.date(),
+                completed=False
+            ).first()
+            
+            if existing_schedule:
+                response_data = {
+                    "schedule_id": existing_schedule.id,
+                    "status": "not_modified",
+                    "existing_entry": {
+                        "start_time": existing_schedule.start_time.strftime("%H:%M:%S"),
+                        "date": existing_schedule.scheduled_date.strftime("%Y-%m-%d"),
+                        "activity": existing_schedule.activity.name
+                    },
+                    "message": "Use o agendamento existente"
+                }
+                
+                # Log para desenvolvimento
+                log_response(response_data, status.HTTP_304_NOT_MODIFIED,route)
+                
+                # Retorna com headers adequados
                 return Response(
-                    {"error": f"Limite diário de {activity.category.max_daily_executions} execuções atingido"},
-                    status=status.HTTP_400_BAD_REQUEST
+                    response_data,
+                    status=status.HTTP_304_NOT_MODIFIED,
+                    headers={
+                        'X-Cache-Status': 'exists',
+                        'X-Schedule-ID': str(existing_schedule.id)
+                    }
                 )
             
-            # 1. Cria registro no histórico
-            History.objects.create(
-                activity=activity,
-                start_time=now
-            )
-            
-            # 2. Cria/atualiza agendamento
-            schedule, created = Schedule.objects.update_or_create(
+            # Cria novo schedule
+            schedule = Schedule.objects.create(
                 activity=activity,
                 scheduled_date=now.date(),
-                defaults={
-                    'start_time': now.time(),
-                    'completed': False
-                }
+                start_time=now.time(),
+                completed=False
+            )
+
+            # Cria registro no histórico (se tiver model History)
+            History.objects.create(
+                activity=schedule.activity,
+                schedule=schedule,
+                start_time=timezone.make_aware(
+                    datetime.combine(schedule.scheduled_date, schedule.start_time)
+                )
             )
             
-            # 3. Atualiza atividade
-            activity.last_executed = now
-            activity.save()
-            
-            # Resposta formatada
             response_data = {
-                "id": activity.id,
-                "name": activity.name,
-                "category": {
-                    "id": activity.category.id,
-                    "name": activity.category.name
-                },
-                "schedule": {
-                    "id": schedule.id,
-                    "date": schedule.scheduled_date,
-                    "start_time": schedule.start_time.strftime("%H:%M:%S") if schedule.start_time else None
-                }
+                "schedule_id": schedule.id,
+                "activity_id": activity.id,
+                "date": schedule.scheduled_date.strftime("%Y-%m-%d"),
+                "start_time": schedule.start_time.strftime("%H:%M:%S"),
+                "status": "Atividade iniciada"
             }
-            
-            return Response(response_data, status=status.HTTP_200_OK)
+            log_response(response_data, status.HTTP_201_CREATED,route)
+            return Response(response_data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Erro ao iniciar atividade: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-    @action(detail=True, methods=['post'])
-    def complete(self, request, pk=None):
+    @action(detail=False, methods=['post'])
+    def complete(self, request):
         """
-        Endpoint: POST /api/activities/<id>/complete/
-        Finaliza uma atividade, registrando no histórico e agendamento
+        POST /api/activities/complete/
+        Body: {"schedule_id": X}
+        Atualiza Schedule e History simultaneamente
         """
+        route = "POST /api/activities/complete/"
         try:
-            activity = self.get_object()
+            schedule_id = request.data.get('schedule_id')
+            if not schedule_id:
+                return Response(
+                    {"error": "O campo schedule_id é obrigatório"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            schedule = Schedule.objects.get(pk=schedule_id)
             now = timezone.now()
             
-            # 1. Atualiza o histórico (encerra a execução atual)
-            history_entry = History.objects.filter(
-                activity=activity,
-                end_time__isnull=True
-            ).order_by('-start_time').first()
-            
-            if history_entry:
-                history_entry.end_time = now
-                history_entry.duration = (now - history_entry.start_time).seconds // 60
-                history_entry.save()
-            
-            # 2. Cria/atualiza registro no Schedule
-            schedule_entry, created = Schedule.objects.get_or_create(
-                activity=activity,
-                scheduled_date=now.date(),
-                defaults={'completed': True}
+            if schedule.completed:
+                history = schedule.execution_history
+                response_data = {
+                    "status": "Atividade já completada",
+                    "schedule_id": schedule.id,
+                    "history_id": history.id,
+                    "completed_at": history.end_time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                log_response(response_data, status.HTTP_201_CREATED,route)
+
+            # Prepara os dados temporais
+            start_datetime = timezone.make_aware(
+                datetime.combine(schedule.scheduled_date, schedule.start_time)
             )
-            
-            if not created:
-                schedule_entry.completed = True
-                schedule_entry.save()
-            
-            # 3. Atualiza a atividade
-            activity.last_executed = now
-            activity.save()
-            
-            return Response(
-                {
-                    "status": "Atividade finalizada com sucesso",
-                    "history_id": history_entry.id if history_entry else None,
-                    "schedule_id": schedule_entry.id
+            duration = int((now - start_datetime).total_seconds() // 60)
+
+            # Atualiza o Schedule
+            schedule.end_time = now.time()
+            schedule.completed = True
+            schedule.save()
+
+            # Atualiza o History vinculado
+            history = schedule.execution_history
+            history.end_time = now
+            history.duration = duration
+            history.save()
+
+            # Primeiro prepare o response_data
+            response_data = {
+                "status": "Atividade completada com sucesso",
+                "schedule": {
+                    "id": schedule.id,
+                    "completed": True,
+                    "start": schedule.start_time.strftime("%H:%M:%S"),
+                    "end": schedule.end_time.strftime("%H:%M:%S")
                 },
-                status=status.HTTP_200_OK
+                "history": {
+                    "id": history.id,
+                    "duration_minutes": duration,
+                    "start": start_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                    "end": now.strftime("%Y-%m-%d %H:%M:%S")
+                }
+            }
+
+            # Use a função de log (o status correto seria 200, não 201)
+            log_response(response_data, status.HTTP_200_OK,route)  # Alterado para HTTP_200_OK
+
+            # Depois retorne o response
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Schedule.DoesNotExist:
+            return Response(
+                {"error": "Agendamento não encontrado"},
+                status=status.HTTP_404_NOT_FOUND
             )
-            
         except Exception as e:
             return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": f"Erro ao completar atividade: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
             )
         
     # apps/pomodoro/views.py
@@ -223,3 +282,36 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+def log_response(response_data, status_code,route):
+    """
+    Exibe o response de duas formas:
+    1. Formatado bonito no console (para desenvolvimento)
+    2. JSON puro para copiar e usar no Postman
+    """
+    status_color = '32m' if status_code < 400 else '31m'
+    console_msg = (
+        f"\n\033[1;34m{'='*60}\033[0m\n"
+        f"\033[1mAPI Response \033[{status_color}({status_code})\033[0m:\n"
+        f"\033[36m{pformat(response_data, indent=2, width=80)}\033[0m\n"
+        f"\033[1;34m{'='*60}\033[0m\n"
+    )
+    print(console_msg)
+    print("\n" + "="*60)
+    print(f"📤 Rota da API:  {route}")
+    print(f"📤 RETORNANDO RESPONSE (status {status_code})")
+    print("-"*60)
+    
+    if isinstance(response_data, dict):
+        for key, value in response_data.items():
+            if isinstance(value, dict):
+                print(f"🔹 {key.upper()}:")
+                pprint(value, indent=4, width=80)
+            else:
+                print(f"🔸 {key}: {value}")
+    else:
+        pprint(response_data, indent=2, width=80)
+    
+    print("="*60 + "\n")
+    # 2. JSON puro para Postman (em vermelho para diferenciar)
+    raw_json = json.dumps(response_data, indent=2, ensure_ascii=False)
+    print(f"\033[31m⬇️ JSON PARA POSTMAN ⬇️\n{raw_json}\n\033[0m")
