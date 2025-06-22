@@ -78,6 +78,7 @@ class Schedule(models.Model):
     )
     scheduled_date = models.DateField()
     start_time = models.TimeField() 
+    end_time = models.TimeField(null=True, blank=True)
     completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
