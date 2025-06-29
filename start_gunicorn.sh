@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 cd /home/barscka/workspace/fullstack/pomodoro_task/backend_pomodoro_task
 source .venv/bin/activate
 exec .venv/bin/gunicorn config.wsgi:application \
