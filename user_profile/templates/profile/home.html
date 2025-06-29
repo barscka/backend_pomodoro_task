@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portifólio {{ profile.name }}</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css"
+        integrity="sha512-NhSC1YmyruXifcj/KFRWoC561YpHpc5Jtzgvbuzx5VozKpWvQ+4nXhPdFgmx8xqexRcpAglTj9sIBWINXa8x5w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap">
+
+    <style>
+        /* Adicione aqui os estilos CSS do seu template original */
+        /* Ou crie arquivos estáticos separados como no exemplo original */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .photo {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .information {
+            margin-top: 20px;
+        }
+        
+        .acordeon {
+            margin-bottom: 20px;
+        }
+        
+        .trigger {
+            width: 100%;
+            text-align: left;
+            padding: 10px;
+            background: #f5f5f5;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        .content {
+            padding: 10px;
+            display: none;
+        }
+        
+        .content.active {
+            display: block;
+        }
+        
+        .skills {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .tools, .personal {
+            width: 48%;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main">
+        <header class="header">
+            {% if profile %}
+                <img src="{{ profile.photo }}" alt="Foto de Perfil" class="photo">
+
+                <h1 class="title">
+                    Olá, <br>eu sou <span>{{ profile.name }}</span>
+                </h1>
+
+                <div class="information">
+                    <p class="job">{{ profile.job }}</p>
+                    <p class="location">{{ profile.location }}</p>
+                    <p class="phone">
+                        <a href="tel:{{ profile.phone }}">{{ profile.phone }}</a>
+                    </p>
+                    <p class="email">
+                        <a href="mailto:{{ profile.email }}">{{ profile.email }}</a>
+                    </p>
+                </div>
+            {% else %}
+                <h1 class="title">Perfil não encontrado</h1>
+            {% endif %}
+        </header>
+
+        {% if profile %}
+        <section class="acordeon">
+            <button class="trigger" type="button" onclick="toggleAccordion(this)">
+                <h2>Skills</h2>
+            </button>
+
+            <div class="content">
+                <div class="skills">
+                    <section class="tools">
+                        <h3>Ferramentas:</h3>
+                        <ul>
+                            {% for skill in profile.hard_skills.all %}
+                            <li>
+                                <a href="{{ skill.url }}" target="_blank">{{ skill.name }}</a>
+                                {% if skill.logo %}
+                                <img src="{{ skill.logo }}" alt="{{ skill.name }}" width="20">
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </section>
+
+                    <section class="personal">
+                        <h3>Pessoal:</h3>
+                        <ul>
+                            {% for skill in profile.soft_skills.all %}
+                            <li>{{ skill.name }}</li>
+                            {% endfor %}
+                        </ul>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="acordeon">
+            <button class="trigger" type="button" onclick="toggleAccordion(this)">
+                <h2>Idiomas</h2>
+            </button>
+
+            <div class="content">
+                <ul class="languages">
+                    {% for language in profile.languages.all %}
+                    <li>{{ language.name }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+
+        <section class="acordeon">
+            <button class="trigger" type="button" onclick="toggleAccordion(this)">
+                <h2>Portfólio</h2>
+            </button>
+
+            <div class="content">
+                <ul class="portfolio">
+                    {% for item in profile.portfolio.all %}
+                    <li>
+                        <a href="{{ item.url }}" target="_blank">{{ item.name }}</a>
+                        {% if item.is_github %} (GitHub){% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+
+        <section class="acordeon">
+            <button class="trigger" type="button" onclick="toggleAccordion(this)">
+                <h2>Experiência Profissional</h2>
+            </button>
+
+            <div class="content">
+                <ul class="experience">
+                    {% for exp in profile.experiences.all %}
+                    <li>
+                        <h3>{{ exp.name }}</h3>
+                        <p><strong>{{ exp.period }}</strong></p>
+                        <p>{{ exp.description }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+        {% endif %}
+
+        <footer>
+            <a href="https://www.linkedin.com/in/alisson-o-ferreira/" target="_blank">
+                Conecte-se comigo no LinkedIn
+            </a>
+        </footer>
+    </main>
+
+    <script>
+        function toggleAccordion(button) {
+            const content = button.nextElementSibling;
+            content.classList.toggle('active');
+        }
+        
+        // Abre a primeira seção por padrão
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstTrigger = document.querySelector('.trigger');
+            if (firstTrigger) {
+                firstTrigger.click();
+            }
+        });
+    </script>
+</body>
+
+</html>
