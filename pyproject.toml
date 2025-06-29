@@ -13,6 +13,7 @@ python-dotenv = "^1.1.0"
 django-apscheduler = "^0.7.0"
 apscheduler = "^3.11.0"
 gunicorn = "^23.0.0"
+djangorestframework-api-key = "^3.1.0"
 
 
 [build-system]

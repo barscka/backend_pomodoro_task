@@ -9,10 +9,12 @@ from rest_framework.response import Response
 from datetime import datetime
 from django.utils import timezone
 from pprint import pprint,pformat
+from rest_framework_api_key.permissions import HasAPIKey
 from .models import Activity, Category, History, Schedule
 from .serializers import ActivitySerializer, HistorySerializer
 
 class ActivityViewSet(viewsets.ModelViewSet):
+    permission_classes = [HasAPIKey] 
     serializer_class = ActivitySerializer
     queryset = Activity.objects.all().select_related('category')
     
