@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 cd "$PWD"
 source .venv/bin/activate
 exec .venv/bin/gunicorn config.wsgi:application \

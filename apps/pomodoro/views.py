@@ -14,7 +14,7 @@ from .models import Activity, Category, History, Schedule
 from .serializers import ActivitySerializer, HistorySerializer
 
 class ActivityViewSet(viewsets.ModelViewSet):
-    permission_classes = [HasAPIKey] 
+    permission_classes = [HasAPIKey]
     serializer_class = ActivitySerializer
     queryset = Activity.objects.all().select_related('category')
     
