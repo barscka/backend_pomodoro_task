@@ -136,9 +136,14 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
+    # Configuração CORRETA - HasAPIKey como permission class
+    'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework_api_key.permissions.HasAPIKey'
     ],
+    
+    # Remova completamente DEFAULT_AUTHENTICATION_CLASSES ou use classes apropriadas
+    # 'DEFAULT_AUTHENTICATION_CLASSES': [
+    #     'rest_framework.authentication.SessionAuthentication',
+    #     'rest_framework.authentication.TokenAuthentication',
+    # ],
 }
-
-
