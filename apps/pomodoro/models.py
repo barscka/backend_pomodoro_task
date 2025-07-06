@@ -23,6 +23,8 @@ class Category(models.Model):
         return self.current_executions < self.max_daily_executions
     
     def clean(self):
+        if not self.pk:
+            return
         """Validação para o limite de execuções"""
         if self.current_executions >= self.max_daily_executions:
             raise ValidationError(
