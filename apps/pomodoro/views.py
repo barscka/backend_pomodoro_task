@@ -2,11 +2,10 @@
 import json
 from django.db import models
 from django.db.models import F, Count
-from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.utils import timezone
 from pprint import pprint,pformat
 from rest_framework_api_key.permissions import HasAPIKey
@@ -195,25 +194,31 @@ class ActivityViewSet(viewsets.ModelViewSet):
                     "completed_at": history.end_time.strftime("%Y-%m-%d %H:%M:%S")
                 }
                 log_response(response_data, status.HTTP_201_CREATED,route)
+                return Response(response_data, status=status.HTTP_200_OK)
 
+            # Obtém a duração da atividade relacionada
+            activity_duration = schedule.activity.duration  # minutos
+            
             # Prepara os dados temporais
             start_datetime = timezone.make_aware(
                 datetime.combine(schedule.scheduled_date, schedule.start_time)
             )
-            duration = int((now - start_datetime).total_seconds() // 60)
-
+            
+            # Calcula o horário de término baseado na duração da atividade
+            end_datetime = start_datetime + timedelta(minutes=activity_duration)
+            
             # Atualiza o Schedule
-            schedule.end_time = now.time()
+            schedule.end_time = end_datetime.time()
             schedule.completed = True
             schedule.save()
 
             # Atualiza o History vinculado
             history = schedule.execution_history
-            history.end_time = now
-            history.duration = duration
+            history.end_time = end_datetime
+            history.duration = activity_duration  # Usa a duração definida na atividade
             history.save()
 
-            # Primeiro prepare o response_data
+            # Prepara a resposta
             response_data = {
                 "status": "Atividade completada com sucesso",
                 "schedule": {
@@ -224,16 +229,13 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 },
                 "history": {
                     "id": history.id,
-                    "duration_minutes": duration,
+                    "duration_minutes": activity_duration,
                     "start": start_datetime.strftime("%Y-%m-%d %H:%M:%S"),
-                    "end": now.strftime("%Y-%m-%d %H:%M:%S")
+                    "end": end_datetime.strftime("%Y-%m-%d %H:%M:%S")
                 }
             }
 
-            # Use a função de log (o status correto seria 200, não 201)
-            log_response(response_data, status.HTTP_200_OK,route)  # Alterado para HTTP_200_OK
-
-            # Depois retorne o response
+            log_response(response_data, status.HTTP_200_OK, route)
             return Response(response_data, status=status.HTTP_200_OK)
 
         except Schedule.DoesNotExist:
