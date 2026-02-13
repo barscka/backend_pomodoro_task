@@ -90,50 +90,37 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=True, methods=['post'])
+        @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         """
         POST /api/activities/<id>/start/
         Cria um novo registro de Schedule com data/hora atual
         """
         route = "POST /api/activities/<id>/start/"
+
         try:
             activity = self.get_object()
             now = timezone.now()
-            
-            # Verifica se já existe um schedule não completado para hoje
+
             existing_schedule = Schedule.objects.filter(
                 activity=activity,
                 scheduled_date=now.date(),
                 completed=False
             ).first()
-            
+
             if existing_schedule:
                 response_data = {
                     "schedule_id": existing_schedule.id,
                     "status": "not_modified",
-                    "existing_entry": {
-                        "start_time": existing_schedule.start_time.strftime("%H:%M:%S"),
-                        "date": existing_schedule.scheduled_date.strftime("%Y-%m-%d"),
-                        "activity": existing_schedule.activity.name
-                    },
-                    "message": "Use o agendamento existente"
                 }
-                
-                # Log para desenvolvimento
-                log_response(response_data, status.HTTP_304_NOT_MODIFIED,route)
-                
-                # Retorna com headers adequados
+
+                log_response(response_data, status.HTTP_304_NOT_MODIFIED, route)
+
                 return Response(
                     response_data,
-                    status=status.HTTP_304_NOT_MODIFIED,
-                    headers={
-                        'X-Cache-Status': 'exists',
-                        'X-Schedule-ID': str(existing_schedule.id)
-                    }
+                    status=status.HTTP_304_NOT_MODIFIED
                 )
-            
-            # Cria novo schedule
+
             schedule = Schedule.objects.create(
                 activity=activity,
                 scheduled_date=now.date(),
@@ -141,15 +128,13 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 completed=False
             )
 
-            # Cria registro no histórico (se tiver model History)
+            # 🔹 Start time real direto do timezone.now()
             History.objects.create(
                 activity=schedule.activity,
                 schedule=schedule,
-                start_time=timezone.make_aware(
-                    datetime.combine(schedule.scheduled_date, schedule.start_time)
-                )
+                start_time=now
             )
-            
+
             response_data = {
                 "schedule_id": schedule.id,
                 "activity_id": activity.id,
@@ -157,21 +142,22 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 "start_time": schedule.start_time.strftime("%H:%M:%S"),
                 "status": "Atividade iniciada"
             }
-            log_response(response_data, status.HTTP_201_CREATED,route)
+
+            log_response(response_data, status.HTTP_201_CREATED, route)
             return Response(response_data, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
             return Response(
                 {"error": f"Erro ao iniciar atividade: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        @action(detail=False, methods=['post'])
+
+    @action(detail=False, methods=['post'])
     def complete(self, request):
         """
         POST /api/activities/complete/
-        Body: {"schedule_id": X}
-        Atualiza Schedule e History usando tempo REAL decorrido
+        Atualiza Schedule e History usando tempo REAL
         """
         route = "POST /api/activities/complete/"
 
@@ -192,43 +178,27 @@ class ActivityViewSet(viewsets.ModelViewSet):
             now = timezone.now()
 
             if schedule.completed:
-                response_data = {
-                    "status": "Atividade já completada",
-                    "schedule_id": schedule.id,
-                    "history_id": history.id,
-                    "completed_at": history.end_time.strftime("%Y-%m-%d %H:%M:%S")
-                    if history.end_time else None
-                }
-                log_response(response_data, status.HTTP_200_OK, route)
-                return Response(response_data, status=status.HTTP_200_OK)
+                return Response(
+                    {"status": "Atividade já completada"},
+                    status=status.HTTP_200_OK
+                )
 
-            # 🔹 Calcula duração REAL
             real_duration_minutes = int(
                 (now - history.start_time).total_seconds() // 60
             )
 
-            # Atualiza History
             history.end_time = now
             history.duration = real_duration_minutes
             history.save()
 
-            # Atualiza Schedule
             schedule.end_time = now.time()
             schedule.completed = True
             schedule.save()
 
             response_data = {
                 "status": "Atividade completada com sucesso",
-                "schedule": {
-                    "id": schedule.id,
-                    "completed": True,
-                    "start": history.start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "end": now.strftime("%Y-%m-%d %H:%M:%S")
-                },
-                "history": {
-                    "id": history.id,
-                    "duration_minutes": real_duration_minutes
-                }
+                "history_id": history.id,
+                "duration_minutes": real_duration_minutes
             }
 
             log_response(response_data, status.HTTP_200_OK, route)
@@ -245,44 +215,57 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        
-    # apps/pomodoro/views.py
-    @action(detail=False, methods=['get'])
-    def history(self, request):
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path=r'status/(?P<schedule_id>[^/.]+)'
+    )
+    def status(self, request, schedule_id=None):
         """
-        GET /api/activities/history/
-        Retorna o histórico completo de execuções com:
-        - Detalhes da atividade
-        - Detalhes da categoria
-        - Status de completude
-        Ordenado por data decrescente
+        GET /api/activities/status/<schedule_id>/
+        Retorna status temporal REAL
         """
         try:
-            # Consulta otimizada com select_related
-            history_entries = History.objects.select_related(
-                'activity__category'
-            ).order_by('-start_time')  # Mais recentes primeiro
+            schedule = Schedule.objects.select_related(
+                'activity',
+                'execution_history'
+            ).get(pk=schedule_id)
 
-            if not history_entries.exists():
-                return Response(
-                    {
-                        "detail": "Nenhum registro de histórico encontrado",
-                        "suggestion": "Execute atividades para gerar histórico"
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            history = schedule.execution_history
+            now = timezone.now()
 
-            serializer = HistorySerializer(history_entries, many=True)
-            return Response(serializer.data)
+            duration_minutes = schedule.activity.duration
+            total_seconds = duration_minutes * 60
 
+            elapsed_seconds = int(
+                (now - history.start_time).total_seconds()
+            )
+
+            remaining_seconds = max(total_seconds - elapsed_seconds, 0)
+
+            return Response({
+                "schedule_id": schedule.id,
+                "activity_id": schedule.activity.id,
+                "start_time": history.start_time,
+                "duration_minutes": duration_minutes,
+                "elapsed_seconds": elapsed_seconds,
+                "remaining_seconds": remaining_seconds,
+                "is_completed": schedule.completed
+            })
+
+        except Schedule.DoesNotExist:
+            return Response(
+                {"error": "Schedule não encontrado"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
             return Response(
-                {
-                    "error": "Erro no servidor ao buscar histórico",
-                    "details": str(e)
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": f"Erro ao obter status: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+
 def log_response(response_data, status_code,route):
     """
     Exibe o response de duas formas:
