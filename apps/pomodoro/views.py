@@ -90,7 +90,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-        @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         """
         POST /api/activities/<id>/start/
