@@ -214,7 +214,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 {"error": f"Erro ao completar atividade: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'])
     def history(self, request):
         """
         GET /api/activities/history/
