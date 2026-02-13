@@ -214,6 +214,41 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 {"error": f"Erro ao completar atividade: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        @action(detail=False, methods=['get'])
+    def history(self, request):
+        """
+        GET /api/activities/history/
+        Retorna o histórico completo de execuções
+        Ordenado por data decrescente
+        """
+        try:
+            history_entries = (
+                History.objects
+                .select_related('activity__category')
+                .order_by('-start_time')
+            )
+
+            if not history_entries.exists():
+                return Response(
+                    {
+                        "detail": "Nenhum registro de histórico encontrado",
+                        "suggestion": "Execute atividades para gerar histórico"
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = HistorySerializer(history_entries, many=True)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response(
+                {
+                    "error": "Erro no servidor ao buscar histórico",
+                    "details": str(e)
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 
     @action(
@@ -247,7 +282,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
             return Response({
                 "schedule_id": schedule.id,
                 "activity_id": schedule.activity.id,
-                "start_time": history.start_time,
+                "start_time": history.start_time.isoformat(),
                 "duration_minutes": duration_minutes,
                 "elapsed_seconds": elapsed_seconds,
                 "remaining_seconds": remaining_seconds,
