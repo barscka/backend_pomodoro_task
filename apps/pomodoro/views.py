@@ -166,14 +166,15 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    @action(detail=False, methods=['post'])
+        @action(detail=False, methods=['post'])
     def complete(self, request):
         """
         POST /api/activities/complete/
         Body: {"schedule_id": X}
-        Atualiza Schedule e History simultaneamente
+        Atualiza Schedule e History usando tempo REAL decorrido
         """
         route = "POST /api/activities/complete/"
+
         try:
             schedule_id = request.data.get('schedule_id')
             if not schedule_id:
@@ -182,56 +183,51 @@ class ActivityViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            schedule = Schedule.objects.get(pk=schedule_id)
+            schedule = Schedule.objects.select_related(
+                'activity',
+                'execution_history'
+            ).get(pk=schedule_id)
+
+            history = schedule.execution_history
             now = timezone.now()
-            
+
             if schedule.completed:
-                history = schedule.execution_history
                 response_data = {
                     "status": "Atividade já completada",
                     "schedule_id": schedule.id,
                     "history_id": history.id,
                     "completed_at": history.end_time.strftime("%Y-%m-%d %H:%M:%S")
+                    if history.end_time else None
                 }
-                log_response(response_data, status.HTTP_201_CREATED,route)
+                log_response(response_data, status.HTTP_200_OK, route)
                 return Response(response_data, status=status.HTTP_200_OK)
 
-            # Obtém a duração da atividade relacionada
-            activity_duration = schedule.activity.duration  # minutos
-            
-            # Prepara os dados temporais
-            start_datetime = timezone.make_aware(
-                datetime.combine(schedule.scheduled_date, schedule.start_time)
+            # 🔹 Calcula duração REAL
+            real_duration_minutes = int(
+                (now - history.start_time).total_seconds() // 60
             )
-            
-            # Calcula o horário de término baseado na duração da atividade
-            end_datetime = start_datetime + timedelta(minutes=activity_duration)
-            
-            # Atualiza o Schedule
-            schedule.end_time = end_datetime.time()
+
+            # Atualiza History
+            history.end_time = now
+            history.duration = real_duration_minutes
+            history.save()
+
+            # Atualiza Schedule
+            schedule.end_time = now.time()
             schedule.completed = True
             schedule.save()
 
-            # Atualiza o History vinculado
-            history = schedule.execution_history
-            history.end_time = end_datetime
-            history.duration = activity_duration  # Usa a duração definida na atividade
-            history.save()
-
-            # Prepara a resposta
             response_data = {
                 "status": "Atividade completada com sucesso",
                 "schedule": {
                     "id": schedule.id,
                     "completed": True,
-                    "start": schedule.start_time.strftime("%H:%M:%S"),
-                    "end": schedule.end_time.strftime("%H:%M:%S")
+                    "start": history.start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "end": now.strftime("%Y-%m-%d %H:%M:%S")
                 },
                 "history": {
                     "id": history.id,
-                    "duration_minutes": activity_duration,
-                    "start": start_datetime.strftime("%Y-%m-%d %H:%M:%S"),
-                    "end": end_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                    "duration_minutes": real_duration_minutes
                 }
             }
 
@@ -248,6 +244,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 {"error": f"Erro ao completar atividade: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
         
     # apps/pomodoro/views.py
     @action(detail=False, methods=['get'])
