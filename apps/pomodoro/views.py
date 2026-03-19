@@ -1,27 +1,49 @@
 # apps/pomodoro/views.py
 import json
-from django.db import models
-from django.db.models import F, Count
+from django.db.models import Count, F, Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from datetime import datetime, timedelta
 from django.utils import timezone
-from pprint import pprint,pformat
+from pprint import pprint, pformat
 from rest_framework_api_key.permissions import HasAPIKey
-from .models import Activity, Category, History, Schedule
-from .serializers import ActivitySerializer, HistorySerializer
+from .models import Activity, Category, Group, History, Schedule
+from .serializers import ActivitySerializer, GroupSerializer, HistorySerializer
+
+
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [HasAPIKey]
+    serializer_class = GroupSerializer
+    queryset = Group.objects.all()
+
 
 class ActivityViewSet(viewsets.ModelViewSet):
     permission_classes = [HasAPIKey]
     serializer_class = ActivitySerializer
-    queryset = Activity.objects.all().select_related('category')
+    queryset = Activity.objects.all().select_related('category', 'category__group')
+
+    def _get_requested_group(self, request):
+        group_id = request.query_params.get('group_id') or request.data.get('group_id')
+        if group_id:
+            return Group.objects.filter(pk=group_id).first()
+
+        group_name = request.query_params.get('group_name') or request.data.get('group_name')
+        if group_name:
+            return Group.objects.filter(name__iexact=group_name).first()
+
+        return None
     
     def get_queryset(self):
         queryset = super().get_queryset()
         category_id = self.request.query_params.get('category_id')
+        group = self._get_requested_group(self.request)
+
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+
+        if group and not group.is_default:
+            queryset = queryset.filter(category__group=group)
+
         return queryset
     
     @action(detail=False, methods=['get'])
@@ -30,46 +52,67 @@ class ActivityViewSet(viewsets.ModelViewSet):
         GET /api/activities/next/
         Retorna a próxima atividade aleatória seguindo as regras:
         1. Ignora atividades concluídas hoje
-        2. Ignora categorias com 2+ execuções hoje
+        2. Quando filtrado por grupo, respeita o limite do grupo
+        3. Sem grupo ou no grupo padrao, mantem o limite por categoria
         3. Ordem aleatória entre as elegíveis
         """
         route = "GET /api/activities/next/"
         try:
             today = timezone.now().date()
+            selected_group = self._get_requested_group(request)
 
             # 1. Atividades concluídas hoje
             completed_today = History.objects.filter(
                 end_time__date=today
             ).values_list('activity_id', flat=True)
 
-            # 2. Categorias esgotadas (2+ execuções hoje)
-            exhausted_categories = (
-                History.objects
-                .filter(start_time__date=today)
-                .values('activity__category')
-                .annotate(exec_count=Count('id'))
-                .filter(exec_count__gte=2)
-                .values_list('activity__category_id', flat=True)
-            )
-
-            # 3. Busca atividades elegíveis
             eligible_activities = (
                 Activity.objects
+                .select_related('category', 'category__group')
                 .exclude(id__in=completed_today)
-                .exclude(category_id__in=exhausted_categories)
-                .order_by('?')  # Random order
             )
+
+            exhausted_categories = []
+            exhausted_groups = []
+
+            if selected_group and not selected_group.is_default:
+                eligible_activities = eligible_activities.filter(category__group=selected_group)
+
+                if not selected_group.can_execute_more():
+                    exhausted_groups = [selected_group.id]
+                    eligible_activities = eligible_activities.none()
+            else:
+                exhausted_categories = list(
+                    Category.objects
+                    .annotate(
+                        executions_today_count=Count(
+                            'activities__histories',
+                            filter=Q(activities__histories__start_time__date=today),
+                        ),
+                    )
+                    .filter(executions_today_count__gte=F('max_daily_executions'))
+                    .values_list('id', flat=True)
+                )
+
+                eligible_activities = eligible_activities.exclude(category_id__in=exhausted_categories)
+
+            eligible_activities = eligible_activities.order_by('?')
 
             activity = eligible_activities.first()
 
             if not activity:
                 response_data = {
                     "detail": "Nenhuma atividade disponível",
-                    "reason": "Todas as atividades foram concluídas hoje ou categorias atingiram o limite",
+                    "reason": (
+                        "Todas as atividades foram concluídas hoje ou o limite do grupo foi atingido"
+                        if selected_group and not selected_group.is_default
+                        else "Todas as atividades foram concluídas hoje ou categorias atingiram o limite"
+                    ),
                     "stats": {
                         "completed_today": len(completed_today),
-                        "exhausted_categories": len(exhausted_categories)
-                    }
+                        "exhausted_categories": len(exhausted_categories),
+                        "exhausted_groups": len(exhausted_groups),
+                    },
                 }
                 log_response(response_data, status.HTTP_404_NOT_FOUND,route)
                 return Response(response_data, status=status.HTTP_404_NOT_FOUND)
@@ -101,6 +144,18 @@ class ActivityViewSet(viewsets.ModelViewSet):
         try:
             activity = self.get_object()
             now = timezone.now()
+            selected_group = self._get_requested_group(request)
+
+            if not activity.can_execute(selected_group):
+                if selected_group and not selected_group.is_default:
+                    return Response(
+                        {"error": "Limite diario do grupo atingido para a atividade selecionada"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                return Response(
+                    {"error": "Limite diario da categoria atingido para a atividade selecionada"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             existing_schedule = Schedule.objects.filter(
                 activity=activity,
