@@ -4,7 +4,7 @@ from .models import Activity, Category, Group, History, Schedule
 
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_default', 'max_daily_executions', 'color')
+    list_display = ('name', 'is_default', 'color')
     list_filter = ('is_default',)
     search_fields = ('name',)
 

@@ -52,9 +52,9 @@ class ActivityViewSet(viewsets.ModelViewSet):
         GET /api/activities/next/
         Retorna a próxima atividade aleatória seguindo as regras:
         1. Ignora atividades concluídas hoje
-        2. Quando filtrado por grupo, respeita o limite do grupo
-        3. Sem grupo ou no grupo padrao, mantem o limite por categoria
-        3. Ordem aleatória entre as elegíveis
+        2. O grupo apenas restringe o universo de busca
+        3. O limite diario continua sendo sempre por categoria
+        4. Ordem aleatória entre as elegíveis
         """
         route = "GET /api/activities/next/"
         try:
@@ -73,28 +73,22 @@ class ActivityViewSet(viewsets.ModelViewSet):
             )
 
             exhausted_categories = []
-            exhausted_groups = []
-
             if selected_group and not selected_group.is_default:
                 eligible_activities = eligible_activities.filter(category__group=selected_group)
-
-                if not selected_group.can_execute_more():
-                    exhausted_groups = [selected_group.id]
-                    eligible_activities = eligible_activities.none()
-            else:
-                exhausted_categories = list(
-                    Category.objects
-                    .annotate(
-                        executions_today_count=Count(
-                            'activities__histories',
-                            filter=Q(activities__histories__start_time__date=today),
-                        ),
-                    )
-                    .filter(executions_today_count__gte=F('max_daily_executions'))
-                    .values_list('id', flat=True)
+ 
+            exhausted_categories = list(
+                Category.objects
+                .annotate(
+                    executions_today_count=Count(
+                        'activities__histories',
+                        filter=Q(activities__histories__start_time__date=today),
+                    ),
                 )
+                .filter(executions_today_count__gte=F('max_daily_executions'))
+                .values_list('id', flat=True)
+            )
 
-                eligible_activities = eligible_activities.exclude(category_id__in=exhausted_categories)
+            eligible_activities = eligible_activities.exclude(category_id__in=exhausted_categories)
 
             eligible_activities = eligible_activities.order_by('?')
 
@@ -103,15 +97,10 @@ class ActivityViewSet(viewsets.ModelViewSet):
             if not activity:
                 response_data = {
                     "detail": "Nenhuma atividade disponível",
-                    "reason": (
-                        "Todas as atividades foram concluídas hoje ou o limite do grupo foi atingido"
-                        if selected_group and not selected_group.is_default
-                        else "Todas as atividades foram concluídas hoje ou categorias atingiram o limite"
-                    ),
+                    "reason": "Todas as atividades foram concluídas hoje ou categorias atingiram o limite",
                     "stats": {
                         "completed_today": len(completed_today),
                         "exhausted_categories": len(exhausted_categories),
-                        "exhausted_groups": len(exhausted_groups),
                     },
                 }
                 log_response(response_data, status.HTTP_404_NOT_FOUND,route)
@@ -147,11 +136,6 @@ class ActivityViewSet(viewsets.ModelViewSet):
             selected_group = self._get_requested_group(request)
 
             if not activity.can_execute(selected_group):
-                if selected_group and not selected_group.is_default:
-                    return Response(
-                        {"error": "Limite diario do grupo atingido para a atividade selecionada"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
                 return Response(
                     {"error": "Limite diario da categoria atingido para a atividade selecionada"},
                     status=status.HTTP_400_BAD_REQUEST,

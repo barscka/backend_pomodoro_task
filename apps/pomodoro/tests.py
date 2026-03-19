@@ -18,7 +18,6 @@ class ActivityNextViewSetTests(APITestCase):
             defaults={
                 'description': 'Grupo padrao que mantem o comportamento atual.',
                 'color': '#FFFFFF',
-                'max_daily_executions': 2,
                 'is_default': True,
             },
         )
@@ -63,15 +62,14 @@ class ActivityNextViewSetTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], available_activity.id)
 
-    def test_next_with_group_filter_uses_group_limit(self):
+    def test_next_with_group_filter_keeps_category_limit_only(self):
         games_group = Group.objects.create(
             name='Jogos',
-            max_daily_executions=1,
         )
         games_category = Category.objects.create(
             name='Competitivo',
             group=games_group,
-            max_daily_executions=5,
+            max_daily_executions=1,
         )
         another_games_category = Category.objects.create(
             name='Casual',
@@ -79,15 +77,15 @@ class ActivityNextViewSetTests(APITestCase):
             max_daily_executions=5,
         )
         first_activity = Activity.objects.create(name='CS2', category=games_category)
-        Activity.objects.create(name='FIFA', category=another_games_category)
+        second_activity = Activity.objects.create(name='FIFA', category=another_games_category)
 
         now = timezone.now()
         self._create_history(first_activity, started_at=now, ended_at=now)
 
         response = self.client.get(f'/api/activities/next/?group_id={games_group.id}')
 
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data['stats']['exhausted_groups'], 1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], second_activity.id)
 
     def test_list_can_filter_by_group(self):
         default_group = Group.objects.get(is_default=True)

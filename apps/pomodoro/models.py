@@ -10,7 +10,6 @@ def get_default_group_id():
             'name': 'Todos',
             'description': 'Grupo padrao que mantem o comportamento atual.',
             'color': '#FFFFFF',
-            'max_daily_executions': 2,
         },
     )
     return group.id
@@ -20,19 +19,7 @@ class Group(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True, null=True)
     color = models.CharField(max_length=7, default='#FFFFFF')
-    max_daily_executions = models.PositiveIntegerField(default=2)
     is_default = models.BooleanField(default=False)
-
-    @property
-    def current_executions(self):
-        today = timezone.now().date()
-        return History.objects.filter(
-            activity__category__group=self,
-            start_time__date=today,
-        ).count()
-
-    def can_execute_more(self):
-        return self.current_executions < self.max_daily_executions
 
     class Meta:
         verbose_name = 'Group'
@@ -118,7 +105,7 @@ class Activity(models.Model):
             return False
 
         if selected_group and not selected_group.is_default:
-            return self.category.group_id == selected_group.id and selected_group.can_execute_more()
+            return self.category.group_id == selected_group.id and self.category.can_execute_more()
 
         return self.category.can_execute_more()
 
@@ -129,7 +116,7 @@ class Activity(models.Model):
         if selected_group and not selected_group.is_default:
             if self.category.group_id != selected_group.id:
                 return 0
-            return max(selected_group.max_daily_executions - selected_group.current_executions, 0)
+            return max(self.category.max_daily_executions - self.category.current_executions, 0)
 
         return max(self.category.max_daily_executions - self.category.current_executions, 0)
     

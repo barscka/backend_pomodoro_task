@@ -11,7 +11,6 @@ def create_default_group(apps, schema_editor):
         defaults={
             'description': 'Grupo padrao que mantem o comportamento atual.',
             'color': '#FFFFFF',
-            'max_daily_executions': 2,
             'is_default': True,
         },
     )
@@ -37,7 +36,6 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=50, unique=True)),
                 ('description', models.TextField(blank=True, null=True)),
                 ('color', models.CharField(default='#FFFFFF', max_length=7)),
-                ('max_daily_executions', models.PositiveIntegerField(default=2)),
                 ('is_default', models.BooleanField(default=False)),
             ],
             options={

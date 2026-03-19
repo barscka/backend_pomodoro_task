@@ -4,11 +4,9 @@ from .models import Activity, Category, Group, History, Schedule
 
 
 class GroupSerializer(serializers.ModelSerializer):
-    current_executions = serializers.IntegerField(read_only=True)
-
     class Meta:
         model = Group
-        fields = ['id', 'name', 'description', 'color', 'max_daily_executions', 'is_default', 'current_executions']
+        fields = ['id', 'name', 'description', 'color', 'is_default']
 
 class CategorySerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(source='group.name', read_only=True)
