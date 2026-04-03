@@ -1,5 +1,6 @@
 # apps/pomodoro/views.py
 import json
+from datetime import timedelta
 from django.db.models import Count, F, Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -222,22 +223,29 @@ class ActivityViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_200_OK
                 )
 
-            real_duration_minutes = int(
-                (now - history.start_time).total_seconds() // 60
+            expected_end_time = history.start_time + timedelta(
+                minutes=schedule.activity.duration
+            )
+            completion_time = min(now, expected_end_time)
+            real_duration_minutes = max(
+                int((completion_time - history.start_time).total_seconds() // 60),
+                0,
             )
 
-            history.end_time = now
+            history.end_time = completion_time
             history.duration = real_duration_minutes
             history.save()
 
-            schedule.end_time = now.time()
+            schedule.end_time = completion_time.time()
             schedule.completed = True
             schedule.save()
 
             response_data = {
                 "status": "Atividade completada com sucesso",
                 "history_id": history.id,
-                "duration_minutes": real_duration_minutes
+                "duration_minutes": real_duration_minutes,
+                "completed_at": completion_time.isoformat(),
+                "expected_end_time": expected_end_time.isoformat(),
             }
 
             log_response(response_data, status.HTTP_200_OK, route)
@@ -316,12 +324,16 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 (now - history.start_time).total_seconds()
             )
 
+            expected_end_time = history.start_time + timedelta(
+                minutes=duration_minutes
+            )
             remaining_seconds = max(total_seconds - elapsed_seconds, 0)
 
             return Response({
                 "schedule_id": schedule.id,
                 "activity_id": schedule.activity.id,
                 "start_time": history.start_time.isoformat(),
+                "expected_end_time": expected_end_time.isoformat(),
                 "duration_minutes": duration_minutes,
                 "elapsed_seconds": elapsed_seconds,
                 "remaining_seconds": remaining_seconds,
