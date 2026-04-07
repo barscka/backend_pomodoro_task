@@ -2,6 +2,7 @@
 import json
 from datetime import timedelta
 from django.db.models import Count, F, Q
+from django.db.models.functions import Random
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -21,7 +22,14 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
 class ActivityViewSet(viewsets.ModelViewSet):
     permission_classes = [HasAPIKey]
     serializer_class = ActivitySerializer
-    queryset = Activity.objects.all().select_related('category', 'category__group')
+    queryset = Activity.objects.filter(active=True).select_related('category', 'category__group')
+
+    def _expire_finished_premiums(self):
+        today = timezone.localdate()
+        Activity.objects.filter(
+            premium=True,
+            premium_until__lt=today,
+        ).update(premium=False)
 
     def _get_requested_group(self, request):
         group_id = request.query_params.get('group_id') or request.data.get('group_id')
@@ -35,6 +43,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         return None
     
     def get_queryset(self):
+        self._expire_finished_premiums()
         queryset = super().get_queryset()
         category_id = self.request.query_params.get('category_id')
         group = self._get_requested_group(self.request)
@@ -45,7 +54,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         if group and not group.is_default:
             queryset = queryset.filter(category__group=group)
 
-        return queryset
+        return queryset.order_by('-premium', 'name')
     
     @action(detail=False, methods=['get'])
     def next(self, request):
@@ -60,6 +69,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         route = "GET /api/activities/next/"
         try:
             today = timezone.now().date()
+            self._expire_finished_premiums()
             selected_group = self._get_requested_group(request)
 
             # 1. Atividades concluídas hoje
@@ -71,6 +81,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 Activity.objects
                 .select_related('category', 'category__group')
                 .exclude(id__in=completed_today)
+                .filter(active=True)
             )
 
             exhausted_categories = []
@@ -91,7 +102,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
             eligible_activities = eligible_activities.exclude(category_id__in=exhausted_categories)
 
-            eligible_activities = eligible_activities.order_by('?')
+            eligible_activities = eligible_activities.order_by('-premium', Random())
 
             activity = eligible_activities.first()
 
@@ -367,21 +378,21 @@ def log_response(response_data, status_code,route):
     )
     print(console_msg)
     print("\n" + "="*60)
-    print(f"📤 Rota da API:  {route}")
-    print(f"📤 RETORNANDO RESPONSE (status {status_code})")
+    print(f"Rota da API:  {route}")
+    print(f"RETORNANDO RESPONSE (status {status_code})")
     print("-"*60)
     
     if isinstance(response_data, dict):
         for key, value in response_data.items():
             if isinstance(value, dict):
-                print(f"🔹 {key.upper()}:")
+                print(f"{key.upper()}:")
                 pprint(value, indent=4, width=80)
             else:
-                print(f"🔸 {key}: {value}")
+                print(f"{key}: {value}")
     else:
         pprint(response_data, indent=2, width=80)
     
     print("="*60 + "\n")
     # 2. JSON puro para Postman (em vermelho para diferenciar)
     raw_json = json.dumps(response_data, indent=2, ensure_ascii=False)
-    print(f"\033[31m⬇️ JSON PARA POSTMAN ⬇️\n{raw_json}\n\033[0m")
+    print(f"\033[31mJSON PARA POSTMAN\n{raw_json}\n\033[0m")

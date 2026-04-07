@@ -83,6 +83,10 @@ class Activity(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     duration = models.IntegerField(default=60)  # em minutos
+    active = models.BooleanField(default=True)
+    premium = models.BooleanField(default=False)
+    premium_from = models.DateField(null=True, blank=True)
+    premium_until = models.DateField(null=True, blank=True)
     category = models.ForeignKey(
         Category, 
         on_delete=models.SET_NULL, 
@@ -98,9 +102,24 @@ class Activity(models.Model):
     class Meta:
         verbose_name = 'Activity'
         verbose_name_plural = 'Activities'
-        ordering = ['name']
+        ordering = ['-premium', 'name']
+
+    @property
+    def is_premium_active(self):
+        if not self.premium:
+            return False
+
+        today = timezone.localdate()
+        if self.premium_from and self.premium_from > today:
+            return False
+        if self.premium_until and self.premium_until < today:
+            return False
+        return True
 
     def can_execute(self, selected_group=None):
+        if not self.active:
+            return False
+
         if not self.category:
             return False
 
@@ -122,6 +141,16 @@ class Activity(models.Model):
     
     def clean(self):
         """Validação temporária usando executions_today"""
+        if self.premium:
+            if not self.premium_from or not self.premium_until:
+                raise ValidationError(
+                    "Atividades premium precisam informar premium_from e premium_until."
+                )
+            if self.premium_from > self.premium_until:
+                raise ValidationError(
+                    "premium_from não pode ser maior que premium_until."
+                )
+
         if self.category and self.executions_today >= self.category.max_daily_executions:
             raise ValidationError(
                 f"Limite diário de {self.category.max_daily_executions} execuções atingido para esta categoria"

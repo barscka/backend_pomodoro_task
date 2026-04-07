@@ -16,8 +16,17 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Activity)
 class ActivityAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'duration', 'executions_today')
-    list_filter = ('category',)
+    list_display = (
+        'name',
+        'category',
+        'active',
+        'premium',
+        'premium_from',
+        'premium_until',
+        'duration',
+        'executions_today',
+    )
+    list_filter = ('active', 'premium', 'category')
     search_fields = ('name', 'description')
 
 @admin.register(History)

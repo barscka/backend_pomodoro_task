@@ -20,10 +20,12 @@ class ActivitySerializer(serializers.ModelSerializer):
     remaining_executions = serializers.SerializerMethodField()
     group_id = serializers.IntegerField(source='category.group_id', read_only=True)
     group_name = serializers.CharField(source='category.group.name', read_only=True)
+    is_premium_active = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Activity
-        fields = ['id', 'name', 'description', 'duration', 'category', 
+        fields = ['id', 'name', 'description', 'duration', 'active', 'premium',
+                 'premium_from', 'premium_until', 'is_premium_active', 'category',
                  'created_at', 'last_executed', 'executions_today',
                  'can_execute', 'remaining_executions', 'group_id', 'group_name']
 
