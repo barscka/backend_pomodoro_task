@@ -1,0 +1,56 @@
+{
+  "$schema": "https://example.local/schemas/personal-skills.schema.json",
+  "schema_version": "1.0",
+  "standards_repo": "skills_pessoais",
+  "standards_ref": "main",
+  "project_type": "application",
+  "project_profile": "project-default",
+  "risk_level": "medium",
+  "enabled_stacks": [
+    "personal-python-api"
+  ],
+  "default_profile": "personal-python-api",
+  "load_mode": "selective",
+  "profile_required_files": {
+    "personal-python-api": [
+      "personal-python-api/SKILL.md",
+      "personal-python-api/references/django.md",
+      "personal-python-api/references/fastapi.md",
+      "personal-python-api/references/flask.md",
+      "personal-python-api/references/poetry.md",
+      "personal-python-api/references/python_api.md",
+      "personal-python-api/references/python_database_safety.md",
+      "personal-python-api/references/python_project_structure.md",
+      "personal-python-api/references/python_tests.md",
+      "personal-python-api/references/python_upgrade.md"
+    ]
+  },
+  "official_flow": [
+    "Read AGENTS.md.",
+    "Read .personal-skills.json.",
+    "Locate skills_pessoais using local config, environment variable or common Linux paths.",
+    "Load only the enabled skills and required files needed for the current task."
+  ],
+  "disallowed_local_sources": [
+    "Do not vendor personal skill folders into the consumer project.",
+    "Do not vendor tools/ from the personal skills repository."
+  ],
+  "allow_experimental": false,
+  "allow_deprecated": false,
+  "required_files": [
+    "personal-dev-workflow/SKILL.md"
+  ],
+  "git_policy": {
+    "ignore_local_config": true,
+    "versioned_project_config": true
+  },
+  "validation_policy": {
+    "run_doctor_before_agent_use": true,
+    "block_on_error": true
+  },
+  "handoff_policy": {
+    "report_loaded_standards": true,
+    "report_validations": true,
+    "report_risks": true
+  }
+}
