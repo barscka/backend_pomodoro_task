@@ -1,6 +1,1 @@
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-from .base import *
+"""Settings package; select local, production or test explicitly."""
