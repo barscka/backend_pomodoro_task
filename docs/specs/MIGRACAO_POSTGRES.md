@@ -3,7 +3,7 @@
 ## Status
 
 - Tipo: spec/plano.
-- Estado: proposta pronta para aprovação e execução.
+- Estado: implementação local em andamento; deploy na VPS pendente.
 - Escopo: desenvolvimento local, testes, migração dos dados existentes e deploy Docker na VPS.
 - Banco de origem: SQLite em `db.sqlite3`.
 - Banco de destino: PostgreSQL 16 central da VPS.
@@ -354,9 +354,21 @@ Não fazem parte do rollback automático: apagar banco, usuário, schema, volume
 - Migração automática de sessões e logs operacionais descartáveis.
 - Exclusão definitiva do SQLite ou dos backups imediatamente após o corte.
 
-## Pendências para aprovação antes da implementação
+## Pendências antes do deploy na VPS
 
-- Confirmar os nomes locais `pomodoro_task_dev` e `pomodoro_task_dev_user`.
 - Confirmar os nomes de produção `pomodoro_task_prod` e `pomodoro_task_user`.
 - Definir duração da janela de manutenção e período de retenção do SQLite.
 - Confirmar se Nginx continuará no host ou também será containerizado em tarefa separada.
+
+## Evidências da implementação local
+
+- Banco `pomodoro_task_dev` e usuário dedicado criados no PostgreSQL central local.
+- Driver `psycopg` adicionado pelo Poetry.
+- Settings separados para desenvolvimento, produção, testes e cópia SQLite legada.
+- Testes automatizados isolados em SQLite.
+- Descoberta padrão corrigida para executar toda a suíte.
+- Schema PostgreSQL criado integralmente pelas migrations existentes.
+- SQLite original preservado; migrations pendentes aplicadas apenas em cópia temporária.
+- 64 objetos de aplicação e autenticação importados no PostgreSQL local durante o ensaio.
+
+As fases de containerização e cutover na VPS permanecem pendentes e não devem começar antes das decisões registradas nesta spec.

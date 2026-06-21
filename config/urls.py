@@ -25,7 +25,7 @@ from user_profile.views import home
 urlpatterns = [
     path('', home, name='home'),
     path('admin/', admin.site.urls),
-    path('api/', include('pomodoro.urls')),
+    path('api/', include('apps.pomodoro.urls')),
 ]
 
 # servir arquivos static em desenvolvimento
