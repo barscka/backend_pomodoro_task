@@ -108,11 +108,95 @@ Antes de liberar uso, compare contagens, maiores PKs, relacionamentos, sequences
 
 ## Produção
 
-O PostgreSQL da VPS não publica a porta 5432. O backend de produção deve executar em container, participar da rede externa `backend_net` e usar:
+O PostgreSQL da VPS não publica a porta 5432. O backend participa simultaneamente de:
+
+- `app_net`: rede interna entre Nginx e Gunicorn;
+- `backend_net`: rede externa compartilhada exclusivamente para alcançar PostgreSQL.
+
+O Nginx do container é publicado somente em `127.0.0.1:8080`. O Nginx já instalado no host continua responsável pela porta pública 80 e encaminha as requisições para esse endereço.
+
+```text
+Internet HTTP :80
+       |
+Nginx do host
+       |
+127.0.0.1:8080
+       |
+Nginx container -> app_net -> Gunicorn/Django -> backend_net -> PostgreSQL
+```
+
+### Limitação atual: HTTP sem TLS
+
+Este deploy não configura HTTPS, conforme a infraestrutura atual. API keys, cookies e conteúdo trafegam sem criptografia entre o cliente e a VPS. Não use esse desenho em redes não confiáveis nem trate os quatro alertas HTTPS do `manage.py check --deploy` como resolvidos.
+
+Quando houver certificado, será necessário habilitar TLS no Nginx do host, cookies `Secure`, redirecionamento HTTPS e HSTS após validação.
+
+### Preparação
+
+O banco de produção deve possuir usuário exclusivo e não pode pertencer ao administrador central:
+
+```text
+Banco: pomodoro_task_prod
+Usuário: pomodoro_task_user
+```
+
+Crie `.env.production` a partir do exemplo e preencha valores reais sem versioná-los:
+
+```bash
+cp .env.production.example .env.production
+chmod 600 .env.production
+```
+
+As variáveis de banco no container devem usar:
 
 ```env
 DB_HOST=postgres
 DB_PORT=5432
 ```
 
-O banco e o usuário de produção são diferentes dos locais. Consulte [a spec de migração](docs/specs/MIGRACAO_POSTGRES.md) antes do deploy.
+Valide a rede e a configuração:
+
+```bash
+docker network inspect backend_net
+docker compose -f compose.yml config --quiet
+```
+
+### Build e release
+
+Construa a imagem e execute migrations como uma etapa única antes de iniciar os workers:
+
+```bash
+docker compose -f compose.yml build --pull backend
+docker compose -f compose.yml run --rm backend python manage.py migrate --noinput
+docker compose -f compose.yml run --rm backend python manage.py collectstatic --noinput
+docker compose -f compose.yml up -d
+docker compose -f compose.yml ps
+```
+
+No primeiro cutover, carregue a fixture final do SQLite da VPS depois de `migrate` e antes de `up -d`. Não reutilize a fixture do ensaio local.
+
+### Nginx do host
+
+Use [o exemplo versionado](deploy/nginx/backend_pomodoro_task.conf.example), substitua `server_name`, valide e recarregue:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+O proxy antigo apontava diretamente para Gunicorn em `127.0.0.1:8000`; a configuração nova deve apontar para o Nginx do container em `127.0.0.1:8080`.
+
+Somente depois que o novo health check responder, desative o programa antigo no Supervisor:
+
+```bash
+curl --fail http://127.0.0.1:8080/healthz/
+docker compose -f compose.yml logs --tail=100 backend nginx
+```
+
+### Rollback
+
+Antes de liberar novas escritas no PostgreSQL, o rollback consiste em parar o Compose, restaurar a configuração anterior do Nginx e reativar o processo antigo no Supervisor com o SQLite preservado.
+
+Depois de novas escritas no PostgreSQL, retornar diretamente ao SQLite perde dados. Nesse caso, prefira correção progressiva ou prepare uma migração reversa em nova janela de manutenção.
+
+Consulte [a spec de migração](docs/specs/MIGRACAO_POSTGRES.md) antes do deploy.

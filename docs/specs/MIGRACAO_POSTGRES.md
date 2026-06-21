@@ -370,5 +370,10 @@ Não fazem parte do rollback automático: apagar banco, usuário, schema, volume
 - Schema PostgreSQL criado integralmente pelas migrations existentes.
 - SQLite original preservado; migrations pendentes aplicadas apenas em cópia temporária.
 - 64 objetos de aplicação e autenticação importados no PostgreSQL local durante o ensaio.
+- Dockerfile multi-stage criado com runtime não-root.
+- Compose criado com root filesystem somente leitura, capabilities removidas e redes separadas.
+- Nginx não-root validado em loopback, servindo health check e arquivos estáticos.
+- Gunicorn acessível somente pela rede interna do Compose.
+- Deploy definido temporariamente em HTTP, sem TLS, por decisão explícita do usuário.
 
-As fases de containerização e cutover na VPS permanecem pendentes e não devem começar antes das decisões registradas nesta spec.
+A fase de containerização foi validada localmente. O cutover na VPS permanece pendente e não deve começar antes das decisões registradas nesta spec.

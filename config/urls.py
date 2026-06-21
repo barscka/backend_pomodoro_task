@@ -20,9 +20,11 @@ from django.conf import settings
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.conf.urls.static import static
 
+from config.health import health_check
 from user_profile.views import home
 
 urlpatterns = [
+    path('healthz/', health_check, name='health-check'),
     path('', home, name='home'),
     path('admin/', admin.site.urls),
     path('api/', include('apps.pomodoro.urls')),
