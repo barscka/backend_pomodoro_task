@@ -20,9 +20,20 @@ Migrar o backend Django do SQLite para PostgreSQL sem perder os dados existentes
 - Configuração de banco centralizada em `config/settings/base.py`.
 - SQLite configurado como banco padrão.
 - Não há driver PostgreSQL nas dependências.
-- Não há `Dockerfile`, `compose.yml`, `compose.dev.yml` ou `.env.example`.
+- Não há `Dockerfile`, `compose.yml` da aplicação ou `.env.example`.
 - O deploy atual usa Gunicorn, Supervisor e Nginx, sem container da aplicação.
 - O Gunicorn atual inicia com `config.settings.local`, mesmo no fluxo de serviço.
+
+### PostgreSQL central local
+
+- O stack de desenvolvimento já existe em `/home/barscka/workspace/postgres`.
+- O serviço usa a imagem `postgres:16` e o nome de container `postgres`.
+- A porta está publicada somente em `127.0.0.1:5432`.
+- Os dados persistem no volume nomeado `postgres_data`.
+- O container participa da rede Docker externa `backend_net`.
+- O servidor está ativo e aceitando conexões.
+- Não será criado outro PostgreSQL dentro deste projeto.
+- O banco e o usuário de desenvolvimento do Pomodoro ainda devem ser criados explicitamente nesse cluster local.
 
 ### Banco SQLite
 
@@ -63,7 +74,16 @@ O problema de descoberta deve ser corrigido antes da migração para que o coman
 
 ### Desenvolvimento local
 
-Usar PostgreSQL 16 local, iniciado por `compose.dev.yml`, com a porta publicada somente em `127.0.0.1`. Isso permite desenvolver sem depender da disponibilidade da VPS e aproxima o comportamento local do banco de produção.
+Reutilizar o PostgreSQL central local já executado por `/home/barscka/workspace/postgres/compose.yml`. Como o Django atualmente roda diretamente no host, a aplicação deve conectar em `127.0.0.1:5432`.
+
+Cada projeto deve possuir banco e usuário próprios dentro desse cluster. Para este backend, usar:
+
+```text
+Banco: pomodoro_task_dev
+Usuário: pomodoro_task_dev_user
+```
+
+O backend não deve criar ou gerenciar o container PostgreSQL local. Sua documentação deve apenas explicar como validar o stack central e como criar o banco e o usuário específicos da aplicação.
 
 ### Testes automatizados
 
@@ -121,7 +141,6 @@ Não serão transferidos por padrão:
 | `.dockerignore` | Excluir ambiente virtual, SQLite, segredos e artefatos locais da imagem. |
 | `Dockerfile` | Criar imagem do backend Django/Gunicorn. |
 | `compose.yml` | Executar o backend na VPS conectado à `backend_net`, sem serviço PostgreSQL. |
-| `compose.dev.yml` | Disponibilizar PostgreSQL 16 local em `127.0.0.1`. |
 | `README.md` | Atualizar instalação, execução, migrations, testes e deploy. |
 | Testes/settings | Corrigir descoberta da suíte e cobrir proteção contra banco real em testes. |
 
@@ -180,8 +199,10 @@ Critério de saída: comando padrão de testes passando e sem conexão com Postg
 2. Refatorar os settings para usar variáveis separadas de banco.
 3. Remover `TIME_ZONE` específico da conexão SQLite; manter `TIME_ZONE = "America/Sao_Paulo"` e `USE_TZ = True` no Django.
 4. Criar `.env.example` sem segredos.
-5. Criar o PostgreSQL local e validar conexão.
-6. Executar todas as migrations em um banco PostgreSQL local vazio.
+5. Validar o stack existente em `/home/barscka/workspace/postgres`, sem alterar seu compose ou volume.
+6. Criar `pomodoro_task_dev_user` e `pomodoro_task_dev` no cluster local, com permissões restritas ao banco da aplicação.
+7. Configurar o Django local para `127.0.0.1:5432`.
+8. Executar todas as migrations no banco local vazio.
 
 Critério de saída: aplicação inicializa, migrations executam do zero e testes de integração passam com PostgreSQL local.
 
@@ -305,6 +326,7 @@ Também deve ser validada a criação integral do schema em PostgreSQL vazio, se
 | Testes atingirem banco real | Settings exclusivos, marcador de ambiente e bloqueio explícito de hosts/URLs não permitidos. |
 | Migrations concorrentes no deploy | Executar uma etapa única de release antes de iniciar workers. |
 | Backend do host não alcançar PostgreSQL privado | Containerizar e conectar à `backend_net`; não publicar 5432. |
+| Projeto criar um segundo PostgreSQL local | Reutilizar exclusivamente o stack central em `/home/barscka/workspace/postgres`. |
 | Rollback perder escritas feitas no PostgreSQL | Manter janela sem escrita até aceite; após liberação, preferir correção progressiva. |
 
 ## Rollback
@@ -334,7 +356,7 @@ Não fazem parte do rollback automático: apagar banco, usuário, schema, volume
 
 ## Pendências para aprovação antes da implementação
 
-- Confirmar PostgreSQL local como padrão de desenvolvimento.
-- Confirmar os nomes `pomodoro_task_prod` e `pomodoro_task_user`.
+- Confirmar os nomes locais `pomodoro_task_dev` e `pomodoro_task_dev_user`.
+- Confirmar os nomes de produção `pomodoro_task_prod` e `pomodoro_task_user`.
 - Definir duração da janela de manutenção e período de retenção do SQLite.
 - Confirmar se Nginx continuará no host ou também será containerizado em tarefa separada.
