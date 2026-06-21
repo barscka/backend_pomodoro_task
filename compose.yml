@@ -17,7 +17,7 @@ services:
     stop_grace_period: 40s
     init: true
     env_file:
-      - .env.production
+      - .env
     expose:
       - "8000"
     volumes:

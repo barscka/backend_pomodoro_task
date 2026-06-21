@@ -140,11 +140,11 @@ Banco: pomodoro_task_prod
 Usuário: pomodoro_task_user
 ```
 
-Crie `.env.production` a partir do exemplo e preencha valores reais sem versioná-los:
+Crie `.env` a partir do exemplo e preencha valores reais sem versioná-los:
 
 ```bash
-cp .env.production.example .env.production
-chmod 600 .env.production
+cp .env.example .env
+chmod 600 .env
 ```
 
 As variáveis de banco no container devem usar:
