@@ -113,7 +113,7 @@ O PostgreSQL da VPS não publica a porta 5432. O backend participa simultaneamen
 - `app_net`: rede interna entre Nginx e Gunicorn;
 - `backend_net`: rede externa compartilhada exclusivamente para alcançar PostgreSQL.
 
-O Nginx do container é publicado somente em `127.0.0.1:8080`. O Nginx já instalado no host continua responsável pela porta pública 80 e encaminha as requisições para esse endereço.
+O Nginx do container é publicado somente em `127.0.0.1:8080`. A imagem do Nginx é construída a partir de [docker/nginx/Dockerfile](docker/nginx/Dockerfile) e recebe a configuração versionada em `docker/nginx/nginx.conf` no build. O Nginx já instalado no host continua responsável pela porta pública 80 e encaminha as requisições para esse endereço.
 
 ```text
 Internet HTTP :80
@@ -166,7 +166,7 @@ docker compose -f compose.yml config --quiet
 Construa a imagem e execute migrations como uma etapa única antes de iniciar os workers:
 
 ```bash
-docker compose -f compose.yml build --pull backend
+docker compose -f compose.yml build --pull
 docker compose -f compose.yml run --rm backend python manage.py migrate --noinput
 docker compose -f compose.yml run --rm backend python manage.py collectstatic --noinput
 docker compose -f compose.yml up -d
