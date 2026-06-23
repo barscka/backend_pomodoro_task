@@ -17,6 +17,8 @@ Este projeto usa minhas skills pessoais do repositorio `skills_pessoais`.
 - Preservar trabalho existente e nao reverter mudancas alheias sem pedido explicito.
 - Ao encerrar uma task com alteracoes, gerar commit coeso com mensagem em portugues do Brasil, salvo pedido explicito em contrario.
 - Antes de fechar, informar padroes carregados, arquivos alterados, validacoes e riscos.
+- Quando pedir para analisar o frontend ele esta em /home/barscka/workspace/fullstack/frontend_pomodoro_task/
+
 
 ## Comandos uteis
 
