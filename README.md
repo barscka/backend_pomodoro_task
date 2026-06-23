@@ -87,6 +87,7 @@ poetry run python manage.py dumpdata \
   auth.user \
   rest_framework_api_key.apikey \
   user_profile \
+  pomodoro.group \
   pomodoro.category \
   pomodoro.activity \
   pomodoro.schedule \
