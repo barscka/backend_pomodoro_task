@@ -3,4 +3,6 @@
 echo "Sincronizando o git..."
 git pull origin main
 echo "reiniciando o  serviço da aplicação..."
-sudo systemctl restart supervisor &&  sudo systemctl restart nginx
+#sudo systemctl restart supervisor &&  sudo systemctl restart nginx
+docker compose down
+docker compose up --build --force-recreate --remove-orphans --no-deps -d
