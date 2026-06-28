@@ -1,8 +1,18 @@
-#!/bin/bash
-# Exibe uma mensagem no terminal
-echo "Sincronizando o git..."
-git pull origin main
-echo "reiniciando o  serviço da aplicação..."
-#sudo systemctl restart supervisor &&  sudo systemctl restart nginx
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+echo "Sincronizando o Git..."
+git pull --ff-only origin main
+
+echo "Reconstruindo os serviços..."
 docker compose down
-docker compose up --build --force-recreate --remove-orphans --no-deps -d
+docker compose up \
+  --build \
+  --force-recreate \
+  --remove-orphans \
+  --no-deps \
+  -d
+
+echo "Estado dos serviços:"
+docker compose ps
