@@ -153,6 +153,18 @@ class ActivityViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            completed_schedule = Schedule.objects.filter(
+                activity=activity,
+                scheduled_date=now.date(),
+                completed=True
+            ).first()
+
+            if completed_schedule:
+                return Response(
+                    {"error": "Esta atividade já foi concluída hoje e não pode ser iniciada novamente"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             existing_schedule = Schedule.objects.filter(
                 activity=activity,
                 scheduled_date=now.date(),
@@ -165,11 +177,11 @@ class ActivityViewSet(viewsets.ModelViewSet):
                     "status": "not_modified",
                 }
 
-                log_response(response_data, status.HTTP_304_NOT_MODIFIED, route)
+                log_response(response_data, status.HTTP_200_OK, route)
 
                 return Response(
                     response_data,
-                    status=status.HTTP_304_NOT_MODIFIED
+                    status=status.HTTP_200_OK
                 )
 
             schedule = Schedule.objects.create(
