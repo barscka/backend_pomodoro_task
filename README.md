@@ -2,6 +2,16 @@
 
 Backend Django/DRF para gerenciamento de atividades, categorias, grupos, agendamentos e históricos do aplicativo Pomodoro.
 
+## Contratos da API
+
+`POST /api/activities/<id>/start/` e idempotente:
+
+- `201 Created` quando cria uma nova execucao;
+- `200 OK` quando reutiliza a execucao aberta da mesma atividade;
+- nunca retorna `304`.
+
+Atividades sem categoria explicita passam a usar a categoria padrao `Todos` com `id = 1`.
+
 ## Requisitos
 
 - Python 3.12;

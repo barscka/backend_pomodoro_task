@@ -1,10 +1,20 @@
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
 from datetime import timedelta
 
-from .models import Activity, ActivityQueueItem, Category, Group, History, Schedule
+from .models import (
+    DEFAULT_CATEGORY_ID,
+    DEFAULT_CATEGORY_NAME,
+    Activity,
+    ActivityQueueItem,
+    Category,
+    Group,
+    History,
+    Schedule,
+)
 
 
 class ActivityNextViewSetTests(APITestCase):
@@ -160,6 +170,30 @@ class ActivityNextViewSetTests(APITestCase):
         self.assertFalse(expired_activity.premium)
         self.assertEqual(response.data[0]['premium'], False)
 
+    def test_activity_created_without_category_uses_default_category(self):
+        activity = Activity.objects.create(name='Sem Categoria')
+
+        self.assertEqual(activity.category_id, DEFAULT_CATEGORY_ID)
+        self.assertEqual(activity.category.name, DEFAULT_CATEGORY_NAME)
+
+    def test_default_category_cannot_be_removed(self):
+        default_category = Category.objects.get(pk=DEFAULT_CATEGORY_ID)
+
+        with self.assertRaises(ValidationError):
+            default_category.delete()
+
+    def test_list_and_next_never_return_null_category(self):
+        activity = Activity.objects.create(name='Categoria Default')
+
+        list_response = self.client.get('/api/activities/')
+        next_response = self.client.get('/api/activities/next/')
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data[0]['category'], DEFAULT_CATEGORY_ID)
+        self.assertEqual(next_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(next_response.data['category'], DEFAULT_CATEGORY_ID)
+        self.assertEqual(next_response.data['activity']['category'], DEFAULT_CATEGORY_ID)
+
 
 class ActivityQueueAndExecutionTests(APITestCase):
     @classmethod
@@ -240,25 +274,30 @@ class ActivityQueueAndExecutionTests(APITestCase):
         first = self._create_activity('Primeira')
         second = self._create_activity('Segunda')
         first_next = self.client.get('/api/activities/next/')
+        current_activity_id = first_next.data['activity']['id']
+        current_activity = first if first.id == current_activity_id else second
+        other_activity = second if current_activity.id == first.id else first
 
-        self.client.post(
-            f'/api/activities/{first.id}/start/',
+        first_start = self.client.post(
+            f'/api/activities/{current_activity.id}/start/',
             {'queue_item_id': first_next.data['queue_item_id']},
             format='json',
         )
+        self.assertEqual(first_start.status_code, status.HTTP_201_CREATED)
+
         second_queue_item = ActivityQueueItem.objects.get(
             queue_id=first_next.data['queue_id'],
-            activity=second,
+            activity=other_activity,
         )
         response = self.client.post(
-            f'/api/activities/{second.id}/start/',
+            f'/api/activities/{other_activity.id}/start/',
             {'queue_item_id': second_queue_item.id},
             format='json',
         )
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(response.data['code'], 'active_execution_conflict')
-        self.assertEqual(response.data['active_execution']['activity']['id'], first.id)
+        self.assertEqual(response.data['active_execution']['activity']['id'], current_activity.id)
 
     def test_active_reconciles_expired_execution_to_no_content(self):
         activity = self._create_activity('Curta', duration=1)
@@ -301,3 +340,26 @@ class ActivityQueueAndExecutionTests(APITestCase):
         self.assertEqual(status_response.data['state'], 'completed')
         self.assertEqual(reconcile_response.status_code, status.HTTP_200_OK)
         self.assertEqual(reconcile_response.data['state'], 'completed')
+
+    def test_start_is_idempotent_for_same_queue_item(self):
+        activity = self._create_activity('Idempotente')
+        next_response = self.client.get('/api/activities/next/')
+        payload = {'queue_item_id': next_response.data['queue_item_id']}
+
+        first_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            payload,
+            format='json',
+        )
+        second_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            payload,
+            format='json',
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_response.data['schedule_id'], second_response.data['schedule_id'])
+        self.assertEqual(first_response.data['activity_id'], second_response.data['activity_id'])
+        self.assertEqual(second_response.data['status'], 'already_started')
+        self.assertEqual(History.objects.filter(schedule_id=first_response.data['schedule_id']).count(), 1)

@@ -2,6 +2,15 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+
+
+DEFAULT_CATEGORY_ID = 1
+DEFAULT_CATEGORY_NAME = 'Todos'
+DEFAULT_CATEGORY_DESCRIPTION = 'Categoria padrao para atividades sem classificacao especifica.'
+DEFAULT_CATEGORY_COLOR = '#FFFFFF'
+DEFAULT_CATEGORY_MAX_DAILY_EXECUTIONS = 2
 
 
 def get_default_group_id():
@@ -80,6 +89,26 @@ class Category(models.Model):
         return self.name
 
 
+def get_default_category_id():
+    default_group = Group.objects.filter(is_default=True).first()
+    if not default_group:
+        default_group_id = get_default_group_id()
+        default_group = Group.objects.get(pk=default_group_id)
+
+    category, _ = Category.objects.get_or_create(
+        pk=DEFAULT_CATEGORY_ID,
+        defaults={
+            'name': DEFAULT_CATEGORY_NAME,
+            'description': DEFAULT_CATEGORY_DESCRIPTION,
+            'color': DEFAULT_CATEGORY_COLOR,
+            'max_daily_executions': DEFAULT_CATEGORY_MAX_DAILY_EXECUTIONS,
+            'executions_today': 0,
+            'group': default_group,
+        },
+    )
+    return category.id
+
+
 class Activity(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
@@ -90,9 +119,8 @@ class Activity(models.Model):
     premium_until = models.DateField(null=True, blank=True)
     category = models.ForeignKey(
         Category, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
+        on_delete=models.PROTECT,
+        default=get_default_category_id,
         related_name='activities'
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -349,6 +377,12 @@ class ActivityPreferenceEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_type} for activity {self.activity_id}"
+
+
+@receiver(pre_delete, sender=Category)
+def prevent_default_category_delete(sender, instance, **kwargs):
+    if instance.pk == DEFAULT_CATEGORY_ID:
+        raise ValidationError('A categoria padrao Todos nao pode ser removida.')
 
 class History(models.Model):
     activity = models.ForeignKey(
