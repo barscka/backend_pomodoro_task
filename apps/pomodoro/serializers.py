@@ -1,6 +1,13 @@
 # apps/pomodoro/serializers.py
 from rest_framework import serializers
-from .models import Activity, Category, Group, History, Schedule
+from .models import (
+    Activity,
+    ActivityQueueItem,
+    Category,
+    Group,
+    History,
+    Schedule,
+)
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -72,3 +79,86 @@ class HistorySerializer(serializers.ModelSerializer):
     def get_completed(self, obj):
         """Determina se a atividade foi completada baseado no end_time"""
         return obj.end_time is not None
+
+
+class ActivityQueueItemSerializer(serializers.ModelSerializer):
+    activity = ActivitySerializer(read_only=True)
+    queue_item_id = serializers.IntegerField(source='id', read_only=True)
+    queue_id = serializers.IntegerField(read_only=True)
+    queue_mode = serializers.CharField(source='queue.mode', read_only=True)
+    pool_number = serializers.IntegerField(source='queue.pool_number', read_only=True)
+    pool_size = serializers.IntegerField(source='queue.pool_size', read_only=True)
+    consumed_count = serializers.IntegerField(source='queue.consumed_count', read_only=True)
+    skip_locked = serializers.BooleanField(source='queue.skip_locked', read_only=True)
+    id = serializers.IntegerField(source='activity.id', read_only=True)
+    name = serializers.CharField(source='activity.name', read_only=True)
+    description = serializers.CharField(source='activity.description', read_only=True)
+    duration = serializers.IntegerField(source='activity.duration', read_only=True)
+    category = serializers.IntegerField(source='activity.category_id', read_only=True)
+    group_id = serializers.IntegerField(source='activity.category.group_id', read_only=True)
+    group_name = serializers.CharField(source='activity.category.group.name', read_only=True)
+    premium = serializers.BooleanField(source='activity.premium', read_only=True)
+    is_premium_active = serializers.BooleanField(source='activity.is_premium_active', read_only=True)
+
+    class Meta:
+        model = ActivityQueueItem
+        fields = [
+            'queue_item_id',
+            'queue_id',
+            'id',
+            'name',
+            'description',
+            'duration',
+            'category',
+            'group_id',
+            'group_name',
+            'premium',
+            'is_premium_active',
+            'activity',
+            'queue_mode',
+            'pool_number',
+            'pool_size',
+            'consumed_count',
+            'skip_locked',
+            'state',
+        ]
+
+
+class ActivityExecutionSerializer(serializers.ModelSerializer):
+    activity = ActivitySerializer(read_only=True)
+    queue_id = serializers.IntegerField(source='queue_item.queue_id', read_only=True)
+    queue_item_id = serializers.IntegerField(read_only=True)
+    execution_id = serializers.IntegerField(source='id', read_only=True)
+    server_now = serializers.SerializerMethodField()
+    remaining_seconds = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Schedule
+        fields = [
+            'execution_id',
+            'id',
+            'queue_id',
+            'queue_item_id',
+            'state',
+            'activity',
+            'requested_at',
+            'starts_at',
+            'expected_end_at',
+            'completed_at',
+            'remaining_seconds',
+            'server_now',
+            'version',
+        ]
+
+    def get_server_now(self, _obj):
+        from django.utils import timezone
+
+        return timezone.now()
+
+    def get_remaining_seconds(self, obj):
+        from django.utils import timezone
+
+        if not obj.expected_end_at:
+            return 0
+        delta = obj.expected_end_at - timezone.now()
+        return max(int(delta.total_seconds()), 0)

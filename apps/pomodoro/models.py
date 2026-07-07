@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
@@ -161,6 +162,19 @@ class Activity(models.Model):
 
 
 class Schedule(models.Model):
+    STATE_PREPARING = 'preparing'
+    STATE_RUNNING = 'running'
+    STATE_COMPLETED = 'completed'
+    STATE_CANCELLED = 'cancelled'
+    STATE_EXPIRED = 'expired'
+    STATE_CHOICES = [
+        (STATE_PREPARING, 'Preparing'),
+        (STATE_RUNNING, 'Running'),
+        (STATE_COMPLETED, 'Completed'),
+        (STATE_CANCELLED, 'Cancelled'),
+        (STATE_EXPIRED, 'Expired'),
+    ]
+
     activity = models.ForeignKey(
         Activity,
         on_delete=models.CASCADE,
@@ -170,14 +184,171 @@ class Schedule(models.Model):
     start_time = models.TimeField() 
     end_time = models.TimeField(null=True, blank=True)
     completed = models.BooleanField(default=False)
+    queue_item = models.OneToOneField(
+        'ActivityQueueItem',
+        on_delete=models.PROTECT,
+        related_name='schedule',
+        null=True,
+        blank=True,
+    )
+    scope_key = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    state = models.CharField(
+        max_length=16,
+        choices=STATE_CHOICES,
+        default=STATE_RUNNING,
+    )
+    version = models.PositiveIntegerField(default=1)
+    requested_at = models.DateTimeField(null=True, blank=True)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    expected_end_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('activity', 'scheduled_date')
         ordering = ['scheduled_date']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['scope_key'],
+                condition=Q(state__in=['preparing', 'running']) & ~Q(scope_key=''),
+                name='unique_open_schedule_per_scope',
+            ),
+        ]
 
     def __str__(self):
         return f"Schedule {self.id} for {self.scheduled_date}"
+
+
+class ActivityQueue(models.Model):
+    STATE_ACTIVE = 'active'
+    STATE_CLOSED = 'closed'
+    STATE_CANCELLED = 'cancelled'
+    STATE_CHOICES = [
+        (STATE_ACTIVE, 'Active'),
+        (STATE_CLOSED, 'Closed'),
+        (STATE_CANCELLED, 'Cancelled'),
+    ]
+
+    MODE_NORMAL = 'normal'
+    MODE_SKIPPED_REVIEW = 'skipped_review'
+    MODE_CHOICES = [
+        (MODE_NORMAL, 'Normal'),
+        (MODE_SKIPPED_REVIEW, 'Skipped review'),
+    ]
+
+    group = models.ForeignKey(
+        Group,
+        on_delete=models.PROTECT,
+        related_name='activity_queues',
+        null=True,
+        blank=True,
+    )
+    scope_key = models.CharField(max_length=64, db_index=True)
+    state = models.CharField(max_length=16, choices=STATE_CHOICES, default=STATE_ACTIVE)
+    mode = models.CharField(max_length=24, choices=MODE_CHOICES, default=MODE_NORMAL)
+    pool_number = models.PositiveIntegerField(default=1)
+    pool_size = models.PositiveIntegerField(default=0)
+    consumed_count = models.PositiveIntegerField(default=0)
+    skip_locked = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['scope_key'],
+                condition=Q(state='active'),
+                name='unique_active_queue_per_scope',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Queue {self.id} ({self.scope_key})"
+
+
+class ActivityQueueItem(models.Model):
+    STATE_PENDING = 'pending'
+    STATE_PRESENTED = 'presented'
+    STATE_STARTED = 'started'
+    STATE_COMPLETED = 'completed'
+    STATE_SKIPPED = 'skipped'
+    STATE_EXPIRED = 'expired'
+    STATE_CHOICES = [
+        (STATE_PENDING, 'Pending'),
+        (STATE_PRESENTED, 'Presented'),
+        (STATE_STARTED, 'Started'),
+        (STATE_COMPLETED, 'Completed'),
+        (STATE_SKIPPED, 'Skipped'),
+        (STATE_EXPIRED, 'Expired'),
+    ]
+
+    queue = models.ForeignKey(
+        ActivityQueue,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    activity = models.ForeignKey(
+        Activity,
+        on_delete=models.PROTECT,
+        related_name='queue_items',
+    )
+    position = models.PositiveIntegerField()
+    state = models.CharField(max_length=16, choices=STATE_CHOICES, default=STATE_PENDING)
+    presented_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    skipped_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['position']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['queue', 'position'],
+                name='unique_queue_item_position',
+            ),
+        ]
+
+    def __str__(self):
+        return f"QueueItem {self.id} ({self.activity_id})"
+
+
+class ActivityPreferenceEvent(models.Model):
+    EVENT_FAVORITE_COMPLETED = 'favorite_completed'
+    EVENT_SKIPPED = 'skipped'
+    EVENT_SKIPPED_COMPLETED = 'skipped_completed'
+    EVENT_CHOICES = [
+        (EVENT_FAVORITE_COMPLETED, 'Favorite completed'),
+        (EVENT_SKIPPED, 'Skipped'),
+        (EVENT_SKIPPED_COMPLETED, 'Skipped completed'),
+    ]
+
+    activity = models.ForeignKey(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name='preference_events',
+    )
+    queue = models.ForeignKey(
+        ActivityQueue,
+        on_delete=models.CASCADE,
+        related_name='preference_events',
+    )
+    queue_item = models.ForeignKey(
+        ActivityQueueItem,
+        on_delete=models.CASCADE,
+        related_name='preference_events',
+        null=True,
+        blank=True,
+    )
+    event_type = models.CharField(max_length=32, choices=EVENT_CHOICES)
+    weight_delta = models.IntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+
+    def __str__(self):
+        return f"{self.event_type} for activity {self.activity_id}"
 
 class History(models.Model):
     activity = models.ForeignKey(

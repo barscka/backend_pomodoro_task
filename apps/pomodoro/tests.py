@@ -4,7 +4,7 @@ from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
 from datetime import timedelta
 
-from .models import Activity, Category, Group, History, Schedule
+from .models import Activity, ActivityQueueItem, Category, Group, History, Schedule
 
 
 class ActivityNextViewSetTests(APITestCase):
@@ -159,3 +159,145 @@ class ActivityNextViewSetTests(APITestCase):
         expired_activity.refresh_from_db()
         self.assertFalse(expired_activity.premium)
         self.assertEqual(response.data[0]['premium'], False)
+
+
+class ActivityQueueAndExecutionTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        _, cls.api_key = APIKey.objects.create_key(name='queue-key')
+
+    def setUp(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Api-Key {self.api_key}')
+        self.default_group, _ = Group.objects.get_or_create(
+            name='Todos',
+            defaults={
+                'description': 'Grupo padrao que mantem o comportamento atual.',
+                'color': '#FFFFFF',
+                'is_default': True,
+            },
+        )
+        self.category = Category.objects.create(
+            name='Foco',
+            group=self.default_group,
+            max_daily_executions=10,
+        )
+
+    def _create_activity(self, name, duration=25):
+        return Activity.objects.create(
+            name=name,
+            category=self.category,
+            duration=duration,
+        )
+
+    def test_next_returns_persisted_queue_item_and_repeats_until_consumed(self):
+        self._create_activity('Primeira')
+        self._create_activity('Segunda')
+
+        response_one = self.client.get('/api/activities/next/')
+        response_two = self.client.get('/api/activities/next/')
+
+        self.assertEqual(response_one.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_one.data['queue_item_id'], response_two.data['queue_item_id'])
+        self.assertEqual(response_one.data['queue_id'], response_two.data['queue_id'])
+        self.assertEqual(response_one.data['id'], response_one.data['activity']['id'])
+        self.assertEqual(response_one.data['activity']['id'], response_two.data['activity']['id'])
+
+    def test_skip_marks_item_and_returns_next_item_id(self):
+        self._create_activity('Primeira')
+        self._create_activity('Segunda')
+
+        next_response = self.client.get('/api/activities/next/')
+        queue_item_id = next_response.data['queue_item_id']
+        skipped_activity_id = next_response.data['activity']['id']
+
+        skip_response = self.client.post(f'/api/activity-queue/items/{queue_item_id}/skip/')
+        after_skip = self.client.get('/api/activities/next/')
+
+        self.assertEqual(skip_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(skip_response.data['activity_id'], skipped_activity_id)
+        self.assertEqual(skip_response.data['state'], 'skipped')
+        self.assertEqual(after_skip.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(after_skip.data['id'], skipped_activity_id)
+
+    def test_start_creates_persistent_execution_and_active_restores_it(self):
+        activity = self._create_activity('Persistente')
+        next_response = self.client.get('/api/activities/next/')
+
+        start_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': next_response.data['queue_item_id']},
+            format='json',
+        )
+        active_response = self.client.get('/api/activities/active/')
+
+        self.assertEqual(start_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(start_response.data['state'], 'running')
+        self.assertEqual(active_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(active_response.data['queue_item_id'], next_response.data['queue_item_id'])
+        self.assertEqual(active_response.data['activity']['id'], activity.id)
+
+    def test_start_conflicts_when_another_execution_is_already_running(self):
+        first = self._create_activity('Primeira')
+        second = self._create_activity('Segunda')
+        first_next = self.client.get('/api/activities/next/')
+
+        self.client.post(
+            f'/api/activities/{first.id}/start/',
+            {'queue_item_id': first_next.data['queue_item_id']},
+            format='json',
+        )
+        second_queue_item = ActivityQueueItem.objects.get(
+            queue_id=first_next.data['queue_id'],
+            activity=second,
+        )
+        response = self.client.post(
+            f'/api/activities/{second.id}/start/',
+            {'queue_item_id': second_queue_item.id},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data['code'], 'active_execution_conflict')
+        self.assertEqual(response.data['active_execution']['activity']['id'], first.id)
+
+    def test_active_reconciles_expired_execution_to_no_content(self):
+        activity = self._create_activity('Curta', duration=1)
+        next_response = self.client.get('/api/activities/next/')
+        start_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': next_response.data['queue_item_id']},
+            format='json',
+        )
+
+        schedule = Schedule.objects.get(pk=start_response.data['schedule_id'])
+        schedule.expected_end_at = timezone.now() - timedelta(minutes=1)
+        schedule.save(update_fields=['expected_end_at'])
+
+        active_response = self.client.get('/api/activities/active/')
+        schedule.refresh_from_db()
+
+        self.assertEqual(active_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(schedule.state, Schedule.STATE_COMPLETED)
+        self.assertTrue(schedule.completed)
+
+    def test_status_and_reconcile_return_completed_execution_after_expiration(self):
+        activity = self._create_activity('Reconcilia', duration=1)
+        next_response = self.client.get('/api/activities/next/')
+        start_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': next_response.data['queue_item_id']},
+            format='json',
+        )
+        schedule_id = start_response.data['schedule_id']
+
+        schedule = Schedule.objects.get(pk=schedule_id)
+        schedule.expected_end_at = timezone.now() - timedelta(minutes=1)
+        schedule.save(update_fields=['expected_end_at'])
+
+        status_response = self.client.get(f'/api/activities/status/{schedule_id}/')
+        reconcile_response = self.client.post(f'/api/activity-executions/{schedule_id}/reconcile/')
+
+        self.assertEqual(status_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(status_response.data['state'], 'completed')
+        self.assertEqual(reconcile_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(reconcile_response.data['state'], 'completed')
