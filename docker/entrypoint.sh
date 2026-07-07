@@ -42,5 +42,6 @@ while True:
         time.sleep(2)
 PY
 fi
-
+echo "Coletando arquivos estáticos..."
+python manage.py collectstatic --noinput
 exec "$@"
