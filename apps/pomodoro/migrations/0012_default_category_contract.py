@@ -9,6 +9,7 @@ DEFAULT_CATEGORY_NAME = 'Todos'
 DEFAULT_CATEGORY_DESCRIPTION = 'Categoria padrao para atividades sem classificacao especifica.'
 DEFAULT_CATEGORY_COLOR = '#FFFFFF'
 DEFAULT_CATEGORY_MAX_DAILY_EXECUTIONS = 2
+TEMP_CATEGORY_NAME_TEMPLATE = '__tmp_default_category_{id}__'
 
 
 def _get_default_group(Group):
@@ -70,10 +71,13 @@ def ensure_default_category(apps, schema_editor):
     todos_elsewhere = Category.objects.filter(name=DEFAULT_CATEGORY_NAME).exclude(pk=DEFAULT_CATEGORY_ID).first()
 
     if current_default and current_default.name != DEFAULT_CATEGORY_NAME:
+        original_name = current_default.name
         new_id = _next_category_id(Category)
+        current_default.name = TEMP_CATEGORY_NAME_TEMPLATE.format(id=current_default.pk)
+        current_default.save(update_fields=['name'])
         Category.objects.create(
             id=new_id,
-            name=current_default.name,
+            name=original_name,
             description=current_default.description,
             color=current_default.color,
             max_daily_executions=current_default.max_daily_executions,

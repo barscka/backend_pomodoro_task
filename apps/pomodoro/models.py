@@ -381,7 +381,7 @@ class ActivityPreferenceEvent(models.Model):
 
 @receiver(pre_delete, sender=Category)
 def prevent_default_category_delete(sender, instance, **kwargs):
-    if instance.pk == DEFAULT_CATEGORY_ID:
+    if instance.pk == DEFAULT_CATEGORY_ID and instance.name == DEFAULT_CATEGORY_NAME:
         raise ValidationError('A categoria padrao Todos nao pode ser removida.')
 
 class History(models.Model):

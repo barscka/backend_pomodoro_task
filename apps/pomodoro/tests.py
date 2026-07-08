@@ -1,3 +1,5 @@
+import importlib
+
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import status
@@ -363,3 +365,86 @@ class ActivityQueueAndExecutionTests(APITestCase):
         self.assertEqual(first_response.data['activity_id'], second_response.data['activity_id'])
         self.assertEqual(second_response.data['status'], 'already_started')
         self.assertEqual(History.objects.filter(schedule_id=first_response.data['schedule_id']).count(), 1)
+
+
+class DefaultCategoryMigrationTests(APITestCase):
+    def test_migration_relocates_category_occupying_id_one(self):
+        Activity.objects.all().delete()
+        Category.objects.exclude(pk=DEFAULT_CATEGORY_ID).delete()
+        Group.objects.exclude(is_default=True).delete()
+
+        default_group = Group.objects.filter(is_default=True).first()
+        if default_group is None:
+            default_group = Group.objects.create(
+                name='Todos',
+                description='Grupo padrao',
+                color='#FFFFFF',
+                is_default=True,
+            )
+
+        default_category = Category.objects.filter(pk=DEFAULT_CATEGORY_ID).first()
+        if default_category is None:
+            default_category = Category.objects.create(
+                id=DEFAULT_CATEGORY_ID,
+                name=DEFAULT_CATEGORY_NAME,
+                description='Categoria padrao',
+                color='#FFFFFF',
+                max_daily_executions=2,
+                executions_today=0,
+                group=default_group,
+            )
+        else:
+            default_category.name = 'Estudo'
+            default_category.description = 'Categoria original'
+            default_category.color = '#123456'
+            default_category.max_daily_executions = 5
+            default_category.group = default_group
+            default_category.save(
+                update_fields=['name', 'description', 'color', 'max_daily_executions', 'group']
+            )
+
+        default_group = Group.objects.get(pk=default_group.pk)
+        occupied = Category.objects.get(pk=DEFAULT_CATEGORY_ID)
+        activity = Activity.objects.create(
+            name='Ler',
+            category=occupied,
+        )
+
+        migration_module = importlib.import_module(
+            'apps.pomodoro.migrations.0012_default_category_contract'
+        )
+
+        class AppsShim:
+            @staticmethod
+            def get_model(app_label, model_name):
+                mapping = {
+                    ('pomodoro', 'Category'): Category,
+                    ('pomodoro', 'Activity'): Activity,
+                    ('pomodoro', 'Group'): Group,
+                }
+                return mapping[(app_label, model_name)]
+
+        class ConnectionOpsShim:
+            @staticmethod
+            def sequence_reset_sql(*args, **kwargs):
+                return []
+
+        class ConnectionShim:
+            ops = ConnectionOpsShim()
+
+        class SchemaEditorShim:
+            connection = ConnectionShim()
+
+            @staticmethod
+            def execute(sql):
+                return None
+
+        migration_module.ensure_default_category(AppsShim(), SchemaEditorShim())
+
+        activity.refresh_from_db()
+        relocated = Category.objects.get(name='Estudo')
+        default_category = Category.objects.get(pk=DEFAULT_CATEGORY_ID)
+
+        self.assertNotEqual(relocated.pk, DEFAULT_CATEGORY_ID)
+        self.assertEqual(activity.category_id, relocated.pk)
+        self.assertEqual(default_category.name, DEFAULT_CATEGORY_NAME)
