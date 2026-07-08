@@ -120,6 +120,7 @@ def ensure_default_category(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ('pomodoro', '0011_schedule_completed_at_schedule_expected_end_at_and_more'),
