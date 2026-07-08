@@ -366,6 +366,43 @@ class ActivityQueueAndExecutionTests(APITestCase):
         self.assertEqual(second_response.data['status'], 'already_started')
         self.assertEqual(History.objects.filter(schedule_id=first_response.data['schedule_id']).count(), 1)
 
+    def test_start_allows_same_activity_again_after_completed_execution_on_same_day(self):
+        activity = self._create_activity('Repetivel')
+        next_response = self.client.get('/api/activities/next/')
+        first_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': next_response.data['queue_item_id']},
+            format='json',
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+
+        schedule = Schedule.objects.get(pk=first_response.data['schedule_id'])
+        complete_response = self.client.post(
+            '/api/activities/complete/',
+            {'schedule_id': schedule.id},
+            format='json',
+        )
+        self.assertEqual(complete_response.status_code, status.HTTP_200_OK)
+
+        second_queue_item = ActivityQueueItem.objects.create(
+            queue=schedule.queue_item.queue,
+            activity=activity,
+            position=schedule.queue_item.position + 1,
+            state=ActivityQueueItem.STATE_PRESENTED,
+        )
+        second_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': second_queue_item.id},
+            format='json',
+        )
+
+        self.assertEqual(second_response.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(second_response.data['schedule_id'], first_response.data['schedule_id'])
+        self.assertEqual(
+            History.objects.filter(activity=activity).count(),
+            2,
+        )
+
 
 class DefaultCategoryMigrationTests(APITestCase):
     def test_migration_relocates_category_occupying_id_one(self):

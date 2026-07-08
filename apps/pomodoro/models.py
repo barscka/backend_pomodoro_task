@@ -233,7 +233,6 @@ class Schedule(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('activity', 'scheduled_date')
         ordering = ['scheduled_date']
         constraints = [
             models.UniqueConstraint(

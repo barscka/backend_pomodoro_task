@@ -117,19 +117,20 @@ def start_activity(
     queue_item.save(update_fields=['state', 'presented_at', 'started_at'])
 
     try:
-        schedule = Schedule.objects.create(
-            activity=activity,
-            scheduled_date=now.date(),
-            start_time=now.time(),
-            completed=False,
-            queue_item=queue_item,
-            scope_key=scope_key,
-            state=Schedule.STATE_RUNNING,
-            version=1,
-            requested_at=now,
-            starts_at=now,
-            expected_end_at=expected_end_at,
-        )
+        with transaction.atomic():
+            schedule = Schedule.objects.create(
+                activity=activity,
+                scheduled_date=now.date(),
+                start_time=now.time(),
+                completed=False,
+                queue_item=queue_item,
+                scope_key=scope_key,
+                state=Schedule.STATE_RUNNING,
+                version=1,
+                requested_at=now,
+                starts_at=now,
+                expected_end_at=expected_end_at,
+            )
     except IntegrityError:
         conflicting = get_active_schedule(scope_key)
         if conflicting and conflicting.queue_item_id == queue_item.id:
