@@ -15,6 +15,7 @@ from apps.pomodoro.models import (
     Category,
     Group,
     History,
+    Schedule,
 )
 
 
@@ -211,6 +212,31 @@ def _expire_invalid_items(queue: ActivityQueue):
         item.presented_at = item.presented_at or now
         item.save(update_fields=['state', 'presented_at'])
 
+    stale_scheduled_items = queue.items.select_related('schedule').filter(
+        state__in=[
+            ActivityQueueItem.STATE_PENDING,
+            ActivityQueueItem.STATE_PRESENTED,
+            ActivityQueueItem.STATE_STARTED,
+        ],
+        schedule__isnull=False,
+    )
+    for item in stale_scheduled_items:
+        schedule = item.schedule
+        if schedule.state in [Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]:
+            item.state = ActivityQueueItem.STATE_STARTED
+            item.started_at = item.started_at or schedule.starts_at or now
+            item.save(update_fields=['state', 'started_at'])
+            continue
+
+        item.state = ActivityQueueItem.STATE_COMPLETED
+        item.completed_at = item.completed_at or schedule.completed_at or now
+        item.save(update_fields=['state', 'completed_at'])
+
+    queue.consumed_count = queue.items.filter(
+        state__in=[ActivityQueueItem.STATE_COMPLETED, ActivityQueueItem.STATE_SKIPPED]
+    ).count()
+    queue.save(update_fields=['consumed_count'])
+
 
 @transaction.atomic
 def present_next_item(*, scope_key: str, selected_group: Group | None):
@@ -220,7 +246,9 @@ def present_next_item(*, scope_key: str, selected_group: Group | None):
 
     item = (
         queue.items.select_related('activity__category__group')
-        .filter(state__in=[ActivityQueueItem.STATE_PRESENTED, ActivityQueueItem.STATE_STARTED])
+        .filter(
+            state__in=[ActivityQueueItem.STATE_PRESENTED, ActivityQueueItem.STATE_STARTED],
+        )
         .order_by('position')
         .first()
     )

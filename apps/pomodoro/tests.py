@@ -403,6 +403,73 @@ class ActivityQueueAndExecutionTests(APITestCase):
             2,
         )
 
+    def test_start_returns_conflict_when_queue_item_was_already_consumed(self):
+        activity = self._create_activity('Consumida')
+        next_response = self.client.get('/api/activities/next/')
+
+        first_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': next_response.data['queue_item_id']},
+            format='json',
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+
+        schedule = Schedule.objects.get(pk=first_response.data['schedule_id'])
+        self.client.post(
+            '/api/activities/complete/',
+            {'schedule_id': schedule.id},
+            format='json',
+        )
+
+        retry_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': next_response.data['queue_item_id']},
+            format='json',
+        )
+
+        self.assertEqual(retry_response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(retry_response.data['code'], 'queue_item_unavailable')
+
+    def test_next_skips_stale_presented_item_with_completed_schedule(self):
+        first = self._create_activity('Primeira')
+        second = self._create_activity('Segunda')
+
+        next_response = self.client.get('/api/activities/next/')
+        first_queue_item = ActivityQueueItem.objects.get(pk=next_response.data['queue_item_id'])
+        stale_activity = first if first.id == first_queue_item.activity_id else second
+        remaining_activity = second if stale_activity.id == first.id else first
+        first_queue_item.state = ActivityQueueItem.STATE_PRESENTED
+        first_queue_item.save(update_fields=['state'])
+
+        schedule = Schedule.objects.create(
+            activity=stale_activity,
+            scheduled_date=timezone.now().date(),
+            start_time=timezone.now().time(),
+            completed=True,
+            end_time=timezone.now().time(),
+            queue_item=first_queue_item,
+            scope_key='completed-scope',
+            state=Schedule.STATE_COMPLETED,
+            version=1,
+            requested_at=timezone.now(),
+            starts_at=timezone.now(),
+            completed_at=timezone.now(),
+        )
+        History.objects.create(
+            activity=stale_activity,
+            schedule=schedule,
+            start_time=timezone.now() - timedelta(minutes=60),
+            end_time=timezone.now(),
+            duration=60,
+        )
+
+        response = self.client.get('/api/activities/next/')
+        first_queue_item.refresh_from_db()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['activity']['id'], remaining_activity.id)
+        self.assertEqual(first_queue_item.state, ActivityQueueItem.STATE_COMPLETED)
+
 
 class DefaultCategoryMigrationTests(APITestCase):
     def test_migration_relocates_category_occupying_id_one(self):

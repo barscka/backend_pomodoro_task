@@ -107,8 +107,13 @@ def start_activity(
         .order_by('-created_at')
         .first()
     )
-    if existing_same and existing_same.state in [Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]:
-        return existing_same, False
+    if existing_same:
+        if existing_same.state in [Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]:
+            return existing_same, False
+        raise ActivityExecutionConflict(
+            code='queue_item_unavailable',
+            detail='O item da fila informado ja foi consumido por uma execucao anterior.',
+        )
 
     expected_end_at = now + timedelta(minutes=activity.duration)
     queue_item.state = ActivityQueueItem.STATE_STARTED
