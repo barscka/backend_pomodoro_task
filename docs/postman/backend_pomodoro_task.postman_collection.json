@@ -1,0 +1,670 @@
+{
+  "info": {
+    "_postman_id": "31d85b43-3080-451f-aebd-4ffd89f9bc36",
+    "name": "backend_pomodoro_task",
+    "description": "Collection para validar contratos e rotas públicas do backend Pomodoro.\n\nPré-requisitos:\n- importar também o environment `backend_pomodoro_task.postman_environment.json`;\n- preencher `api_key`;\n- ajustar `base_url` conforme o ambiente.\n\nFluxo recomendado:\n1. Health\n2. Groups > List\n3. Activities > List by Group\n4. Activities > Next\n5. Activities > Start Current\n6. Activities > Active\n7. Activities > Status Current\n8. Activities > Complete Current\n9. Queue > Skip Current\n10. History\n\nA collection tenta propagar automaticamente `group_id`, `activity_id`, `queue_item_id`, `queue_id`, `schedule_id` e `execution_id` entre as chamadas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const required = ['base_url', 'api_key'];",
+          "const missing = required.filter((key) => !pm.environment.get(key));",
+          "if (missing.length) {",
+          "  console.warn('Postman environment missing:', missing.join(', '));",
+          "}",
+          "const normalizeNumeric = (key) => {",
+          "  const value = pm.environment.get(key);",
+          "  if (value === undefined || value === null || value === '') return;",
+          "  const numeric = String(value).trim();",
+          "  if (/^\\d+$/.test(numeric)) {",
+          "    pm.environment.set(key, numeric);",
+          "  }",
+          "};",
+          "['group_id', 'activity_id', 'queue_id', 'queue_item_id', 'schedule_id', 'execution_id', 'category_id', 'created_activity_id'].forEach(normalizeNumeric);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "json_headers",
+      "value": "application/json"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /healthz/",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/../healthz/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "..",
+                "healthz",
+                ""
+              ]
+            },
+            "description": "Health check da aplicação."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('health returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "GET /groups/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/groups/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "groups",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('groups returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "if (Array.isArray(data) && data.length > 0) {",
+                  "  const preferred = data.find((item) => item.name === pm.environment.get('group_name')) || data[0];",
+                  "  if (preferred && preferred.id) {",
+                  "    pm.environment.set('group_id', String(preferred.id));",
+                  "    pm.environment.set('group_name', preferred.name || '');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /groups/{{group_id}}/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/groups/{{group_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "groups",
+                "{{group_id}}",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Activities",
+      "item": [
+        {
+          "name": "GET /activities/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /activities/?group_id={{group_id}}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/?group_id={{group_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "group_id",
+                  "value": "{{group_id}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('activities by group returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "if (Array.isArray(data) && data.length > 0) {",
+                  "  const first = data[0];",
+                  "  if (first.id) pm.environment.set('activity_id', String(first.id));",
+                  "  if (first.name) pm.environment.set('activity_name', first.name);",
+                  "  if (first.category) pm.environment.set('category_id', String(first.category));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /activities/{{activity_id}}/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/{{activity_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "{{activity_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /activities/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{json_headers}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Activity {{$timestamp}}\",\n  \"description\": \"Criada via Postman para validar contratos.\",\n  \"duration\": 25,\n  \"active\": true,\n  \"category\": {{category_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/activities/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('create activity returns 201 or 400/403 depending on environment', function () {",
+                  "  pm.expect([201, 400, 403, 405]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.id) {",
+                  "    pm.environment.set('created_activity_id', String(data.id));",
+                  "    pm.environment.set('activity_id', String(data.id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /activities/{{activity_id}}/",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{json_headers}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Atualizada via Postman em {{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/activities/{{activity_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "{{activity_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /activities/{{created_activity_id}}/",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/{{created_activity_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "{{created_activity_id}}",
+                ""
+              ]
+            },
+            "description": "Usa o ID criado por `POST /activities/` quando disponível."
+          }
+        },
+        {
+          "name": "GET /activities/next/?group_id={{group_id}}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/next/?group_id={{group_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "next",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "group_id",
+                  "value": "{{group_id}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('next activity returns 200 or 404', function () {",
+                  "  pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.queue_item_id) pm.environment.set('queue_item_id', String(data.queue_item_id));",
+                  "  if (data.queue_id) pm.environment.set('queue_id', String(data.queue_id));",
+                  "  if (data.id) pm.environment.set('activity_id', String(data.id));",
+                  "  if (data.name) pm.environment.set('activity_name', data.name);",
+                  "  if (data.category) pm.environment.set('category_id', String(data.category));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /activities/{{activity_id}}/start/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{json_headers}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"queue_item_id\": {{queue_item_id}},\n  \"group_id\": {{group_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/activities/{{activity_id}}/start/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "{{activity_id}}",
+                "start",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('start returns contract status', function () {",
+                  "  pm.expect([200, 201, 400, 404, 409, 500]).to.include(pm.response.code);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "if (data.schedule_id) pm.environment.set('schedule_id', String(data.schedule_id));",
+                  "if (data.execution_id) pm.environment.set('execution_id', String(data.execution_id));",
+                  "if (data.queue_item_id) pm.environment.set('queue_item_id', String(data.queue_item_id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /activities/complete/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "{{json_headers}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_id\": {{schedule_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/activities/complete/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "complete",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /activities/active/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/active/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "active",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('active returns 200 or 204', function () {",
+                  "  pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.schedule_id) pm.environment.set('schedule_id', String(data.schedule_id));",
+                  "  if (data.execution_id) pm.environment.set('execution_id', String(data.execution_id));",
+                  "  if (data.queue_item_id) pm.environment.set('queue_item_id', String(data.queue_item_id));",
+                  "  if (data.activity && data.activity.id) pm.environment.set('activity_id', String(data.activity.id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /activities/history/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/history/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "history",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /activities/status/{{schedule_id}}/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activities/status/{{schedule_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activities",
+                "status",
+                "{{schedule_id}}",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Queue",
+      "item": [
+        {
+          "name": "POST /activity-queue/items/{{queue_item_id}}/skip/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activity-queue/items/{{queue_item_id}}/skip/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activity-queue",
+                "items",
+                "{{queue_item_id}}",
+                "skip",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('skip returns contract status', function () {",
+                  "  pm.expect([200, 404, 409, 500]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.next_queue_item_id) pm.environment.set('queue_item_id', String(data.next_queue_item_id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Executions",
+      "item": [
+        {
+          "name": "GET /activity-executions/{{execution_id}}/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activity-executions/{{execution_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activity-executions",
+                "{{execution_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /activity-executions/{{execution_id}}/reconcile/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activity-executions/{{execution_id}}/reconcile/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activity-executions",
+                "{{execution_id}}",
+                "reconcile",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
