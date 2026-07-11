@@ -1,179 +1,466 @@
-# Fila de randomizacao de atividades
+---
 
-## Status
+spec_id: SPEC-BACK-003
+titulo: Fila persistida e randomização ponderada de atividades
+status: APPROVED
+fase: AS_IS
+situacao: VIGENTE
+responsavel: Arquitetura de Software
+criado_em: 2026-06-22
+atualizado_em: 2026-07-11
+documento_principal:
 
-- Tipo: spec/plano.
-- Estado: pronto para validacao de produto antes da implementacao.
-- Escopo: backend Django/DRF do app Pomodoro.
-- Risco: medio-alto, pois altera a selecao de proxima atividade, cria persistencia nova e muda o significado de atividades feitas e puladas.
+* SPEC-BACK-003
+  dependencias:
+* SPEC-BACK-001
+* SPEC-BACK-002
+  substitui: []
+  substituida_por: []
 
-## Objetivo
+---
 
-Substituir a randomizacao sob demanda de `GET /api/activities/next/` por uma fila persistida. A primeira execucao deve gerar uma ordem aleatoria para todas as atividades elegiveis, respeitando grupos predefinidos. Depois disso, o usuario consome a fila: ao pular uma atividade, o backend registra em uma lista de puladas; ao fazer a atividade, registra em uma lista de favoritas.
+# SPEC-BACK-003 — Fila persistida e randomização ponderada de atividades
 
-A cada pool de 30 atividades feitas ou puladas, o backend gera a proxima fila aleatoria com peso maior para atividades favoritas. Depois de 5 execucoes dessa pool, a proxima etapa deve restringir a selecao as atividades puladas; na 6a pool, nao deve ser possivel pular para outras atividades.
+## 1. Objetivo
 
-## Diagnostico do fluxo atual
+Definir o comportamento canônico da fila persistida de atividades do backend Pomodoro.
 
-Hoje `ActivityViewSet.next` executa a selecao diretamente no banco:
+A fila deve substituir a seleção aleatória independente realizada a cada chamada ao endpoint de próxima atividade.
 
-- busca atividades ativas;
-- exclui atividades que possuem `History.end_time` no dia atual;
-- restringe por `group_id` ou `group_name`, quando informado;
-- remove categorias que atingiram `max_daily_executions`;
-- ordena por `-premium` e `Random()`;
-- retorna apenas o primeiro item.
+O backend deve:
 
-Esse desenho nao preserva a ordem sorteada entre chamadas. Cada refresh ou nova chamada pode retornar outra atividade elegivel, e nao existe estado de fila, pool, favorita ou pulada. A persistencia atual tambem diferencia apenas `Schedule` e `History`; uma atividade iniciada ja cria `History`, e a conclusao marca `Schedule.completed`.
+* gerar uma sequência persistida de atividades elegíveis;
+* manter o item apresentado entre chamadas sucessivas;
+* permitir que o usuário inicie ou pule o item apresentado;
+* registrar eventos positivos e negativos de preferência;
+* utilizar o histórico de atividades concluídas e puladas para influenciar filas futuras;
+* fechar pools de atividades consumidas;
+* gerar novas filas de maneira ponderada;
+* preservar as regras vigentes de categoria, grupo, atividade ativa e limite diário;
+* manter consistência transacional entre fila, execução e histórico.
 
-## Decisoes de produto propostas
+---
 
-### Terminologia
+## 2. Estado da Specification
 
-Para evitar ambiguidade, a implementacao deve padronizar:
+### Classificação geral
 
-| Termo | Significado |
-| --- | --- |
-| Fila | Sequencia persistida de atividades que serao apresentadas ao usuario. |
-| Item da fila | Uma atividade em uma posicao especifica da fila. |
-| Pool ou lote | Janela de 30 itens consumidos, contando feitos e pulados. |
-| Feita | Atividade iniciada e concluida com sucesso. |
-| Pulada | Atividade recusada explicitamente pelo usuario antes de iniciar. |
-| Favorita | Atividade feita dentro do mecanismo de fila, usada como sinal positivo para peso futuro. |
+**PARCIALMENTE CONFIRMADO**
 
-### Geracao inicial
+Está confirmado nos fontes atuais que:
 
-Na primeira execucao sem fila ativa:
+* existem modelos persistentes de fila;
+* existe modelo para itens da fila;
+* existe modelo para eventos de preferência;
+* existe serviço de domínio para gerenciamento da fila;
+* o endpoint de próxima atividade usa fila persistida;
+* chamadas repetidas podem retornar o item apresentado ainda não consumido;
+* existe ação para pular um item;
+* o pulo altera o estado do item;
+* o pulo registra informação utilizada na seleção futura;
+* o início da atividade depende de `queue_item_id`;
+* a conclusão integra execução e item da fila;
+* existe escopo de fila;
+* existem constraints para limitar fila ativa;
+* existem estados próprios para fila e item;
+* existe seleção ponderada baseada em histórico;
+* existem testes relacionados à fila e execução.
 
-1. o backend seleciona todas as atividades elegiveis;
-2. aplica filtros de grupo predefinido, atividade ativa, atividade premium vigente e limite diario por categoria;
-3. embaralha a ordem;
-4. persiste a fila;
-5. retorna o primeiro item pendente.
+Permanecem parcialmente confirmados:
 
-O filtro de grupo deve continuar sendo uma restricao do universo, nao um contador separado. A regra atual de limite diario por categoria deve ser preservada ate que exista decisao explicita em contrario.
+* o ciclo completo de fechamento após exatamente 30 itens;
+* a regra definitiva das cinco pools normais;
+* a existência operacional da pool restrita a atividades puladas;
+* o bloqueio de `skip` na pool de revisão;
+* a distribuição estatística real dos pesos;
+* o comportamento do ciclo completo em PostgreSQL;
+* a homologação ponta a ponta com o frontend.
 
-### Consumo da fila
+---
 
-O endpoint de proxima atividade deve retornar o primeiro item pendente da fila ativa. Ele nao deve sortear novamente enquanto houver item pendente valido.
+## 3. Contexto
 
-Ao iniciar e completar uma atividade:
+Antes desta implementação, o endpoint:
 
-- o item da fila passa para `completed`;
-- a atividade entra no historico positivo da fila;
-- a atividade recebe ou reforca peso de favorita para pools futuras;
-- `Schedule` e `History` continuam sendo a fonte do historico operacional de execucao.
+```http
+GET /api/activities/next/
+```
 
-Ao pular uma atividade:
+selecionava diretamente uma atividade no banco.
 
-- o item da fila passa para `skipped`;
-- o backend grava o evento na tabela de puladas;
-- a atividade nao deve aparecer novamente na mesma pool normal, exceto nas fases restritas a puladas;
-- pular nao deve criar `Schedule` nem `History`.
+O fluxo anterior:
 
-## Regra de pools
+1. consultava atividades ativas;
+2. aplicava filtros funcionais;
+3. ordenava usando prioridade e aleatoriedade;
+4. retornava somente um registro;
+5. descartava a ordem sorteada após a resposta.
 
-Uma pool fecha quando a soma de itens `completed` e `skipped` atinge 30.
+Esse comportamento permitia que:
 
-Ao fechar uma pool normal:
+* uma nova chamada retornasse outra atividade;
+* refresh da tela alterasse a sugestão;
+* não existisse item apresentado persistido;
+* não existisse histórico específico de pulo;
+* atividades concluídas e puladas não influenciassem adequadamente a seleção futura;
+* o frontend não possuísse um identificador estável do item apresentado.
 
-1. calcular favoritos e puladas acumulados;
-2. gerar uma nova fila aleatoria;
-3. aplicar peso maior para favoritas;
-4. manter alguma chance de atividades nao favoritas para evitar repeticao excessiva;
-5. respeitar filtros de atividade ativa, grupo e limites diarios.
+A fila persistida foi criada para transformar a seleção aleatória em um fluxo consumível e auditável.
 
-### Peso das favoritas
+---
 
-Proposta inicial de pesos:
+## 4. Terminologia canônica
 
-| Condicao da atividade | Peso |
-| --- | ---: |
-| Favorita recente | 4 |
-| Favorita historica | 2 |
-| Neutra | 1 |
-| Pulada recente em pool normal | 1 |
+| Termo                 | Significado                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| Fila                  | Sequência persistida de atividades apresentada ao usuário.                               |
+| Item da fila          | Associação entre uma atividade e sua posição ou ocorrência dentro da fila.               |
+| Pool                  | Ciclo de consumo utilizado para controlar regeneração e ponderação da fila.              |
+| Item pendente         | Item criado, mas ainda não apresentado ou consumido.                                     |
+| Item apresentado      | Item retornado ao frontend e aguardando ação do usuário.                                 |
+| Item iniciado         | Item associado a uma execução ativa.                                                     |
+| Item concluído        | Item cuja atividade foi iniciada e finalizada com sucesso.                               |
+| Item pulado           | Item recusado explicitamente antes do início.                                            |
+| Item expirado         | Item que deixou de ser elegível após a geração da fila.                                  |
+| Evento de preferência | Registro imutável que representa conclusão, pulo ou outro sinal utilizado na ponderação. |
+| Escopo                | Identificador usado para separar a fila ativa e a execução vigente.                      |
 
-Atividades premium vigentes continuam tendo prioridade antes da ponderacao ou recebem multiplicador adicional. A decisao recomendada e manter a garantia atual de premium primeiro, mas ordenar aleatoriamente dentro do conjunto premium com os mesmos pesos.
+---
 
-### Regra das 5 execucoes
+## 5. Escopo
 
-A frase "depois de 5 execucao, dessa pull, somente poderar ser feitas as puladas" precisa virar uma regra verificavel. Interpretacao proposta:
+Esta Specification contempla:
 
-- a cada 5 pools normais concluidas, o sistema entra em uma pool de revisao;
-- a pool de revisao contem apenas atividades puladas em pools anteriores;
-- nessa pool, atividades favoritas e neutras nao entram na fila;
-- concluir uma pulada remove ou reduz sua penalidade de pulada;
-- pular novamente mantem a atividade na lista de puladas.
+* persistência da fila;
+* persistência dos itens da fila;
+* estados da fila;
+* estados dos itens;
+* geração inicial;
+* seleção de atividades elegíveis;
+* manutenção do item apresentado;
+* ação de pular;
+* integração com início;
+* integração com conclusão;
+* eventos de preferência;
+* cálculo de pesos;
+* geração das filas seguintes;
+* fechamento de pools;
+* escopo da fila;
+* constraints e transações;
+* idempotência;
+* tratamento de itens que se tornam inelegíveis;
+* contrato HTTP da próxima atividade;
+* contrato HTTP de pulo;
+* contrato HTTP de início vinculado à fila.
 
-### Sexta pool sem pular
+---
 
-Interpretacao proposta da frase "na sexta pull, sem pular para outras":
+## 6. Fora de escopo
 
-- a 6a pool e a pool de revisao de puladas;
-- durante essa pool, o usuario nao pode usar o endpoint de pular;
-- o usuario deve fazer a atividade apresentada ou encerrar/pausar a sessao;
-- `POST skip` deve responder `409 Conflict` com codigo estavel quando a pool estiver travada.
+Não fazem parte desta Specification:
 
-Essa decisao precisa de confirmacao, porque tambem pode significar "na sexta atividade dentro da mesma pool" ou "na sexta tentativa de uma pulada". A implementacao nao deve seguir sem fechar essa semantica.
+* recomendação por machine learning;
+* WebSocket ou Server-Sent Events;
+* autenticação multiusuário;
+* alteração estrutural de `Schedule`;
+* reescrita integral do histórico operacional;
+* troca de framework;
+* troca de banco;
+* alteração do contador visual do frontend;
+* criação de tela administrativa da fila;
+* edição manual da ordem da fila;
+* alteração dos campos temporais de `Schedule`;
+* correção específica de timezone no PostgreSQL;
+* criação de múltiplas sessões simultâneas para o mesmo usuário;
+* alteração das regras da categoria padrão.
 
-## Modelo de dados previsto
+A correção do início e da conclusão no PostgreSQL está registrada na:
 
-Criar modelos novos no app `pomodoro`, mantendo `Activity`, `Schedule` e `History` para o historico de execucao:
+```text
+SPEC-BACK-006
+```
 
-| Modelo | Campos principais |
-| --- | --- |
-| `ActivityQueue` | `id`, `group`, `state`, `mode`, `pool_number`, `pool_size`, `consumed_count`, `skip_locked`, `created_at`, `closed_at` |
-| `ActivityQueueItem` | `queue`, `activity`, `position`, `state`, `presented_at`, `started_at`, `completed_at`, `skipped_at` |
-| `ActivityPreferenceEvent` | `activity`, `event_type`, `queue`, `queue_item`, `weight_delta`, `created_at` |
+---
 
-Estados sugeridos para `ActivityQueue`:
+## 7. Arquitetura de domínio
 
-- `active`;
-- `closed`;
-- `cancelled`.
+A implementação atual utiliza os seguintes modelos principais:
 
-Modos sugeridos:
+```text
+ActivityQueue
+ActivityQueueItem
+ActivityPreferenceEvent
+Activity
+Schedule
+History
+```
 
-- `normal`;
-- `skipped_review`.
+Relação conceitual:
 
-Estados sugeridos para `ActivityQueueItem`:
+```text
+ActivityQueue
+   └── ActivityQueueItem
+          ├── Activity
+          └── Schedule
+                 └── History
 
-- `pending`;
-- `presented`;
-- `started`;
-- `completed`;
-- `skipped`;
-- `expired`.
+ActivityPreferenceEvent
+   ├── Activity
+   ├── ActivityQueue
+   └── ActivityQueueItem
+```
 
-`ActivityPreferenceEvent.event_type` deve aceitar pelo menos:
+---
 
-- `favorite_completed`;
-- `skipped`;
-- `skipped_completed`;
+## 8. Modelos persistidos
 
-Se o produto exigir tabelas fisicas separadas para favoritas e puladas, elas podem ser materializadas como `FavoriteActivity` e `SkippedActivity`. A recomendacao tecnica e registrar eventos imutaveis e derivar o saldo atual, porque isso preserva auditoria e permite ajustar pesos sem perder historico.
+## 8.1 `ActivityQueue`
 
-## Servico de dominio
+Representa a fila ativa ou encerrada de um escopo.
 
-Adicionar uma camada de servico para tirar regra de negocio de `views.py`:
+Responsabilidades:
 
-| Arquivo | Responsabilidade |
-| --- | --- |
-| `apps/pomodoro/services/activity_queue.py` | Gerar filas, calcular pesos, consumir itens, fechar pools e abrir revisoes de puladas. |
-| `apps/pomodoro/selectors/activity_eligibility.py` | Centralizar filtros de atividades elegiveis, grupo, premium e limite diario. |
-| `apps/pomodoro/repositories/activity_queue.py` | Encapsular queries transacionais se a complexidade justificar. |
+* armazenar o escopo;
+* controlar o estado da fila;
+* registrar o modo da pool;
+* manter contadores de consumo;
+* registrar número da pool;
+* indicar se o pulo está bloqueado;
+* registrar criação e encerramento;
+* garantir unicidade da fila ativa por escopo.
 
-A view deve coordenar request, permissao e response. A regra de fila, pesos e transicao de estado deve ficar no servico.
+Estados identificados:
 
-## Contrato HTTP esperado
+```text
+active
+closed
+cancelled
+```
 
-### Obter proxima atividade
+Outros estados somente devem ser adicionados mediante nova Specification.
 
-`GET /api/activities/next/?group_id=<id>`
+---
 
-Resposta `200 OK`:
+## 8.2 `ActivityQueueItem`
+
+Representa uma ocorrência de atividade dentro de uma fila.
+
+Estados identificados:
+
+```text
+pending
+presented
+started
+completed
+skipped
+expired
+```
+
+O item deve manter, quando aplicável:
+
+* fila;
+* atividade;
+* posição;
+* estado;
+* data de apresentação;
+* data de início;
+* data de conclusão;
+* data de pulo;
+* referência à execução.
+
+O mesmo item não pode ser simultaneamente concluído e pulado.
+
+---
+
+## 8.3 `ActivityPreferenceEvent`
+
+Registra os sinais utilizados para ponderação futura.
+
+A estratégia adotada utiliza eventos persistidos em vez de manter somente listas mutáveis de favoritas e puladas.
+
+Essa decisão permite:
+
+* preservar auditoria;
+* recalcular pesos;
+* ajustar regras futuras;
+* evitar perda de histórico;
+* diferenciar pulo, conclusão e revisão;
+* impedir que uma simples flag apague o histórico anterior.
+
+Tipos funcionais esperados incluem equivalentes a:
+
+```text
+favorite_completed
+skipped
+skipped_completed
+```
+
+Os nomes exatos devem seguir os choices existentes no model.
+
+---
+
+## 9. Escopo da fila
+
+A fila ativa é limitada por um `scope_key`.
+
+O aplicativo é pessoal e utilizado atualmente por apenas um usuário.
+
+Mesmo assim, o escopo é mantido porque ele permite:
+
+* identificar a instalação ou credencial;
+* evitar duas filas ativas concorrentes;
+* associar execução e fila;
+* preservar compatibilidade com possível evolução futura;
+* impedir colisão entre requisições simultâneas.
+
+A implementação atual deriva o escopo da credencial ou contexto da requisição.
+
+Neste projeto, o escopo não representa usuário de negócio completo.
+
+---
+
+## 10. Constraint da fila ativa
+
+Deve existir no máximo uma fila ativa por escopo.
+
+A regra deve ser protegida no banco por constraint condicional equivalente a:
+
+```python
+models.UniqueConstraint(
+    fields=["scope_key"],
+    condition=Q(state="active"),
+    name="unique_active_queue_per_scope",
+)
+```
+
+A geração também deve tratar `IntegrityError`, pois duas requisições podem tentar criar a fila ao mesmo tempo.
+
+---
+
+## 11. Geração inicial da fila
+
+Quando não existir fila ativa utilizável, o backend deve:
+
+1. resolver o escopo;
+2. resolver o grupo solicitado, quando informado;
+3. consultar atividades elegíveis;
+4. excluir atividades inativas;
+5. tratar premium expirado;
+6. respeitar o limite diário;
+7. excluir atividades incompatíveis;
+8. aplicar a estratégia de seleção;
+9. embaralhar ou ponderar a ordem;
+10. criar a fila;
+11. criar seus itens;
+12. apresentar o primeiro item válido.
+
+A criação deve ocorrer dentro de transação.
+
+A fila não deve ser gerada novamente a cada chamada enquanto houver item válido.
+
+---
+
+## 12. Elegibilidade das atividades
+
+Uma atividade somente pode entrar ou permanecer apresentável quando:
+
+* está ativa;
+* pertence ao grupo permitido, quando houver filtro;
+* sua categoria está válida;
+* sua categoria não atingiu o limite diário;
+* regras de premium foram processadas;
+* não viola restrição diária vigente;
+* não possui execução incompatível aberta;
+* atende ao modo da pool atual.
+
+A elegibilidade deve ser centralizada no serviço de domínio ou helper reutilizável.
+
+Views não devem duplicar a regra.
+
+---
+
+## 13. Premium
+
+Atividades premium vigentes devem continuar recebendo prioridade.
+
+A implementação pode:
+
+* separar primeiro o universo premium;
+* aplicar peso adicional;
+* priorizar premium antes da ponderação;
+* randomizar dentro do conjunto premium.
+
+O comportamento efetivamente implementado deve ser preservado enquanto não houver nova decisão funcional.
+
+Atividade com premium expirado não deve continuar sendo tratada como premium ativo.
+
+---
+
+## 14. Apresentação do item
+
+O endpoint de próxima atividade deve retornar o primeiro item válido da fila.
+
+Enquanto esse item estiver em estado compatível com apresentação, chamadas repetidas devem retornar o mesmo item.
+
+A simples leitura do endpoint não deve:
+
+* pular automaticamente;
+* concluir;
+* iniciar;
+* criar nova fila;
+* alterar preferência;
+* consumir mais de um item.
+
+O estado esperado após apresentação é equivalente a:
+
+```text
+presented
+```
+
+---
+
+## 15. Item que se torna inválido
+
+Uma atividade pode deixar de ser válida após a fila ser gerada.
+
+Exemplos:
+
+* atividade desativada;
+* categoria atingiu limite;
+* grupo foi alterado;
+* premium expirou;
+* atividade já foi concluída;
+* execução incompatível foi criada.
+
+Nesse caso, o backend deve:
+
+1. identificar a inelegibilidade;
+2. marcar o item como `expired`;
+3. não apresentar a atividade;
+4. procurar o próximo item válido;
+5. não registrar pulo;
+6. não criar evento de preferência negativo.
+
+---
+
+## 16. Contrato de próxima atividade
+
+## 16.1 Endpoint
+
+```http
+GET /api/activities/next/
+```
+
+Filtros podem incluir:
+
+```text
+group_id
+group_name
+```
+
+## 16.2 Resposta
+
+Exemplo conceitual:
 
 ```json
 {
@@ -197,18 +484,79 @@ Resposta `200 OK`:
 }
 ```
 
-Sem atividade disponivel:
+O serializer vigente pode possuir campos adicionais ou nomes ligeiramente diferentes.
 
-- `404 Not Found` quando nao existe atividade elegivel;
-- `204 No Content` pode ser adotado quando a fila existe, mas nao ha item disponivel no momento.
+O contrato não deve remover:
 
-A escolha entre `404` e `204` deve ser fechada antes da implementacao para evitar contrato ambiguo no frontend.
+```text
+queue_id
+queue_item_id
+activity
+```
 
-### Pular atividade
+sem Specification de compatibilidade.
 
-`POST /api/activity-queue/items/{queue_item_id}/skip/`
+---
 
-Resposta `200 OK`:
+## 16.3 Ausência de item
+
+O comportamento vigente deve ser preservado.
+
+A versão original da Specification registrava ambiguidade entre:
+
+```http
+404 Not Found
+```
+
+e:
+
+```http
+204 No Content
+```
+
+Os fontes atuais devem ser tratados como referência operacional.
+
+Caso o backend retorne `404`, esse comportamento deve ser documentado como contrato vigente.
+
+Não deve haver alternância arbitrária entre `404` e `204`.
+
+---
+
+## 17. Ação de pular
+
+## 17.1 Endpoint
+
+```http
+POST /api/activity-queue/items/{queue_item_id}/skip/
+```
+
+## 17.2 Regras
+
+Ao pular:
+
+1. localizar o item;
+2. bloquear o registro em transação;
+3. validar se o item pode ser pulado;
+4. validar se o pulo está permitido na pool;
+5. alterar o estado para `skipped`;
+6. registrar `skipped_at`;
+7. criar evento de preferência;
+8. atualizar contadores da fila;
+9. localizar ou apresentar o próximo item;
+10. retornar resposta estável.
+
+Pular não deve criar:
+
+* `Schedule`;
+* `History`;
+* execução ativa;
+* evento positivo.
+
+---
+
+## 17.3 Resposta
+
+Exemplo:
 
 ```json
 {
@@ -219,7 +567,32 @@ Resposta `200 OK`:
 }
 ```
 
-Quando a pool estiver travada:
+O campo de próximo item pode ser nulo quando a fila precisar ser regenerada.
+
+---
+
+## 17.4 Idempotência do pulo
+
+Quando o item já estiver `skipped`, uma chamada repetida não deve:
+
+* criar outro evento;
+* incrementar o contador novamente;
+* consumir outro item indevidamente;
+* alterar o horário original do pulo.
+
+A resposta pode reutilizar o estado existente.
+
+---
+
+## 18. Pulo bloqueado
+
+Quando a pool estiver em modo que não permite pular, o endpoint deve responder:
+
+```http
+409 Conflict
+```
+
+Exemplo:
 
 ```json
 {
@@ -228,115 +601,594 @@ Quando a pool estiver travada:
 }
 ```
 
-Status: `409 Conflict`.
+A existência completa desse modo permanece parcialmente confirmada.
 
-### Iniciar e completar
+O campo:
 
-O `POST /api/activities/{id}/start/` deve receber opcionalmente `queue_item_id`. Ao completar a execucao, o backend deve marcar o item da fila como `completed` dentro de uma transacao.
+```text
+skip_locked
+```
 
-Exemplo de inicio:
+deve ser considerado parte do contrato da fila quando estiver presente no model e serializer.
+
+---
+
+## 19. Início de atividade
+
+## 19.1 Endpoint
+
+```http
+POST /api/activities/{activity_id}/start/
+```
+
+Payload:
 
 ```json
 {
-  "queue_item_id": 91,
-  "group_id": 1
+  "queue_item_id": 91
 }
 ```
 
-Se o cliente tentar iniciar uma atividade diferente do item atual da fila, o backend deve responder `409 Conflict` com codigo `queue_item_mismatch`.
+O `queue_item_id` é obrigatório no fluxo de fila persistida.
 
-## Concorrencia e consistencia
+---
 
-- A fila ativa deve ser unica por escopo. Enquanto nao existir usuario autenticado, o escopo minimo deve ser a API key ou uma instalacao explicitamente single-tenant.
-- Geracao de fila deve ocorrer em transacao e bloquear a fila ativa do escopo para evitar duas filas simultaneas.
-- `queue_item_id` deve ser obrigatorio para marcar uma atividade como feita ou pulada dentro do novo fluxo.
-- Conclusao repetida deve ser idempotente: um item ja `completed` continua `completed` e nao duplica evento favorito.
-- Pulo repetido deve ser idempotente enquanto o item estiver `skipped` e nao pode criar eventos duplicados.
-- Atividades desativadas depois da geracao da fila devem ser ignoradas no momento de apresentacao e marcadas como `expired`.
+## 19.2 Validações
 
-## Compatibilidade com regras atuais
+Antes de iniciar, o backend deve validar:
+
+* item existente;
+* item pertencente à fila ativa;
+* atividade do item igual à atividade da URL;
+* item ainda iniciável;
+* atividade ativa;
+* categoria elegível;
+* ausência de execução incompatível;
+* limite diário;
+* escopo da execução.
+
+Se atividade e item divergirem:
+
+```http
+409 Conflict
+```
+
+```json
+{
+  "code": "queue_item_mismatch",
+  "detail": "A atividade informada não corresponde ao item da fila."
+}
+```
+
+---
+
+## 19.3 Transição de estado
+
+Ao iniciar:
+
+```text
+presented → started
+```
+
+ou transição equivalente prevista no código.
+
+O backend deve:
+
+* criar ou reutilizar `Schedule`;
+* associar `Schedule` ao item;
+* registrar horário de início;
+* preservar a posição da fila;
+* não criar outro item;
+* não gerar nova fila.
+
+---
+
+## 19.4 Falha conhecida
+
+Existe uma regressão no fluxo de início após a migração para PostgreSQL.
+
+O backend tenta persistir horário com timezone em `TimeField`.
+
+Essa correção pertence à:
+
+```text
+SPEC-BACK-006
+```
+
+A falha não altera a validade arquitetural da fila, mas impede a homologação completa do fluxo `play`.
+
+---
+
+## 20. Conclusão de atividade
+
+Ao concluir uma execução:
+
+1. localizar `Schedule`;
+2. bloquear registros necessários;
+3. validar estado;
+4. persistir conclusão;
+5. atualizar `History`;
+6. marcar o item como `completed`;
+7. registrar evento positivo;
+8. atualizar contadores da fila;
+9. avaliar fechamento da pool;
+10. não duplicar eventos em repetição da chamada.
+
+Transição esperada:
+
+```text
+started → completed
+```
+
+Uma conclusão repetida deve ser idempotente.
+
+---
+
+## 21. Histórico operacional e histórico de preferência
+
+O sistema mantém duas finalidades distintas.
+
+### 21.1 Histórico operacional
+
+Representado por:
+
+```text
+Schedule
+History
+```
+
+Registra:
+
+* início;
+* término;
+* duração;
+* execução;
+* estado operacional.
+
+### 21.2 Histórico de preferência
+
+Representado por:
+
+```text
+ActivityPreferenceEvent
+```
+
+Registra:
+
+* pulo;
+* conclusão positiva;
+* conclusão de item anteriormente pulado;
+* peso ou sinal para seleção futura.
+
+Um pulo não deve gerar `History` operacional.
+
+Uma conclusão pode gerar tanto histórico operacional quanto evento de preferência.
+
+---
+
+## 22. Pools
+
+Uma pool representa um ciclo de consumo da fila.
+
+O tamanho originalmente definido é:
+
+```text
+30 itens
+```
+
+Itens consumidos incluem:
+
+```text
+completed
+skipped
+```
+
+Itens expirados não devem ser tratados automaticamente como preferência.
+
+A fila deve controlar:
+
+* `pool_number`;
+* `pool_size`;
+* `consumed_count`;
+* modo;
+* bloqueio de pulo;
+* fechamento.
+
+A implementação deve impedir que o mesmo item incremente `consumed_count` mais de uma vez.
+
+---
+
+## 23. Fechamento da pool
+
+Quando o número de itens consumidos atingir o limite:
+
+1. encerrar a fila atual;
+2. registrar `closed_at`;
+3. consolidar sinais de preferência;
+4. calcular o modo da próxima pool;
+5. gerar nova fila;
+6. preservar o escopo;
+7. respeitar elegibilidade atual;
+8. não reutilizar itens antigos como se fossem novos.
+
+Essa transição deve ser transacional ou protegida contra duas filas simultâneas.
+
+---
+
+## 24. Ponderação
+
+A seleção futura deve considerar eventos históricos.
+
+Referência funcional original:
+
+| Condição                      | Peso de referência |
+| ----------------------------- | -----------------: |
+| Favorita recente              |                  4 |
+| Favorita histórica            |                  2 |
+| Neutra                        |                  1 |
+| Pulada recente em pool normal |                  1 |
+
+Os valores efetivos devem seguir o código atual.
+
+A Specification não deve sobrescrever silenciosamente pesos implementados sem evidência.
+
+A propriedade funcional obrigatória é:
+
+* atividades concluídas devem possuir chance maior que atividades neutras;
+* atividades neutras devem continuar tendo chance;
+* atividades puladas não devem ser permanentemente excluídas;
+* a seleção não deve se tornar determinística;
+* premium deve continuar respeitado;
+* a fila deve evitar repetição excessiva quando houver universo suficiente.
+
+---
+
+## 25. Histórico de pulos
+
+O histórico de atividades puladas deve influenciar seleções futuras.
+
+O backend deve permitir:
+
+* identificar atividades puladas recentemente;
+* identificar recorrência de pulo;
+* incluir puladas em ciclos de revisão;
+* reduzir ou neutralizar o sinal negativo quando forem concluídas;
+* preservar eventos anteriores para auditoria.
+
+O histórico não deve ser representado apenas pelo estado atual de um único item, pois cada fila contém uma nova ocorrência.
+
+---
+
+## 26. Pool de revisão
+
+A regra funcional originalmente proposta foi:
+
+* após cinco pools normais;
+* criar uma pool de revisão;
+* incluir somente atividades anteriormente puladas;
+* bloquear o pulo durante essa pool.
+
+Essa regra deve ser tratada como:
+
+**PARCIALMENTE CONFIRMADA**
+
+A implementação dos modelos possui estrutura compatível com:
+
+* modos de fila;
+* contagem de pools;
+* bloqueio de pulo;
+* histórico de puladas.
+
+Entretanto, a análise estática realizada não comprova integralmente:
+
+* fechamento automático das cinco pools;
+* criação obrigatória da sexta;
+* universo exclusivo de puladas;
+* bloqueio funcional de todos os skips;
+* reinício correto do ciclo.
+
+Esses pontos exigem teste direcionado.
+
+---
+
+## 27. Compatibilidade com regras existentes
 
 Devem continuar valendo:
 
-- apenas atividades `active=True` entram na apresentacao;
-- premium expirado e desativado automaticamente antes da selecao;
-- grupo informado restringe o universo da fila;
-- limite diario por categoria bloqueia apresentacao/inicio quando atingido;
-- atividade ja concluida no dia nao deve voltar em pool normal;
-- `Schedule.unique_together(activity, scheduled_date)` impede repetir a mesma atividade no mesmo dia no modelo atual.
+* somente atividades ativas são apresentadas;
+* premium expirado é tratado;
+* filtro de grupo restringe o universo;
+* categoria é obrigatória;
+* limite diário permanece válido;
+* execução aberta impede início incompatível;
+* atividade concluída no dia segue a regra vigente;
+* categoria padrão continua disponível;
+* autenticação por API Key permanece vigente;
+* PostgreSQL permanece como banco operacional;
+* SQLite permanece isolado para testes.
 
-O ultimo ponto e um bloqueio importante para a regra de revisao de puladas se ela puder apresentar uma atividade ja feita no mesmo dia. A implementacao deve decidir se revisao de puladas respeita o bloqueio diario atual ou se uma migracao futura remodelara `Schedule`.
+---
 
-## Plano de implementacao
+## 28. Concorrência
 
-1. Confirmar a semantica da 6a pool e o escopo da fila.
-2. Criar services/selectors para reproduzir a elegibilidade atual com testes antes de mudar o endpoint.
-3. Criar migrations dos modelos de fila e eventos.
-4. Implementar geracao inicial de fila por grupo/escopo.
-5. Alterar `GET /api/activities/next/` para consumir fila persistida.
-6. Criar endpoint de pular e registrar evento `skipped`.
-7. Integrar `start`/`complete` com `queue_item_id` e registrar evento positivo.
-8. Implementar fechamento de pool com 30 consumos e geracao ponderada da proxima fila.
-9. Implementar pool de revisao de puladas a cada 5 pools normais.
-10. Ajustar frontend para consumir `queue_id`, `queue_item_id`, `skip_locked` e erros estaveis.
+A fila deve ser segura diante de requisições simultâneas.
 
-## Testes esperados
+Mecanismos esperados:
 
-### Backend
+* `transaction.atomic`;
+* `select_for_update`;
+* constraint de fila ativa;
+* tratamento de `IntegrityError`;
+* idempotência;
+* bloqueio do item antes de pular;
+* bloqueio do item antes de iniciar;
+* verificação do estado após o lock;
+* prevenção de eventos duplicados.
 
-- primeira chamada gera fila persistida e retorna o primeiro item;
-- chamadas repetidas retornam o mesmo item enquanto ele estiver pendente/apresentado;
-- pular marca item como `skipped`, cria evento de pulada e retorna proximo item;
-- completar marca item como `completed`, cria evento favorito e nao duplica em chamada repetida;
-- apos 30 itens consumidos, uma nova fila e criada;
-- favoritas aparecem com frequencia maior em amostra deterministica usando seed controlada;
-- apos 5 pools normais, a proxima pool contem apenas puladas;
-- na pool travada, `POST skip` retorna `409 skip_locked`;
-- atividade inativa nao aparece mesmo se estava na fila;
-- limite diario por categoria continua bloqueando apresentacao ou inicio;
-- grupos diferentes nao misturam filas quando o escopo exigir separacao.
+Cenários críticos:
 
-### Frontend
+1. duas chamadas de `next`;
+2. duas chamadas de `skip`;
+3. `skip` e `start` simultâneos;
+4. duas chamadas de `start`;
+5. duas conclusões;
+6. duas tentativas de fechar a pool;
+7. duas gerações de nova fila.
 
-- botao de pular chama o novo endpoint e atualiza para a proxima atividade;
-- botao de pular fica indisponivel quando `skip_locked=true`;
-- start envia `queue_item_id`;
-- erro `queue_item_mismatch` força refresh da proxima atividade;
-- tela exibe corretamente pool normal e pool de revisao, se houver indicador de produto.
+---
 
-## Validacoes manuais
+## 29. Contratos de erro
 
-1. Criar ao menos 35 atividades ativas em grupos diferentes.
-2. Abrir a tela e confirmar que a ordem nao muda ao atualizar sem consumir item.
-3. Pular algumas atividades e concluir outras ate fechar 30 consumos.
-4. Confirmar que a pool seguinte favorece atividades feitas.
-5. Repetir ate a 6a pool e confirmar que apenas puladas aparecem.
-6. Confirmar que nao e possivel pular durante a pool travada.
+| Código funcional          | Situação                             |
+| ------------------------- | ------------------------------------ |
+| `queue_item_mismatch`     | Atividade não corresponde ao item.   |
+| `skip_locked`             | Pool não permite pular.              |
+| `queue_item_not_found`    | Item inexistente ou indisponível.    |
+| `queue_item_consumed`     | Item já concluído ou pulado.         |
+| `active_execution_exists` | Existe execução incompatível aberta. |
+| `daily_limit_reached`     | Categoria atingiu limite diário.     |
+| `no_activity_available`   | Não existe atividade elegível.       |
 
-## Riscos
+Os nomes exatos devem ser comparados aos fontes atuais antes de documentar publicamente.
 
-| Risco | Mitigacao |
-| --- | --- |
-| Ambiguidade em "5 execucoes" e "sexta pull" | Fechar decisao de produto antes de codar a regra. |
-| Duas filas ativas por concorrencia | Constraint por escopo e transacao com lock. |
-| Pesos gerarem repeticao excessiva | Definir teto de repeticao e manter chance minima para neutras. |
-| `Schedule` atual impedir repeticao diaria | Decidir se a revisao de puladas respeita ou altera esse contrato. |
-| API sem usuario autenticado misturar consumidores | Escopar por API key ou declarar instalacao single-tenant. |
-| Randomizacao dificil de testar | Injetar seed/gerador no service em testes unitarios. |
+---
 
-## Fora de escopo
+## 30. Arquivos relacionados
 
-- Reescrever todo o modelo temporal de `Schedule`.
-- Criar recomendacao por machine learning.
-- Sincronizacao em tempo real por WebSocket/SSE.
-- Alterar autenticacao da API.
-- Migrar para outro framework ou trocar banco.
+| Caminho relativo                               | Responsabilidade                                         |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `apps/pomodoro/models.py`                      | Models da fila, item, preferência, execução e histórico. |
+| `apps/pomodoro/services/activity_queue.py`     | Geração, apresentação, pulo, ponderação e fechamento.    |
+| `apps/pomodoro/services/activity_execution.py` | Integração entre fila e execução.                        |
+| `apps/pomodoro/views.py`                       | Contratos HTTP.                                          |
+| `apps/pomodoro/serializers.py`                 | Serialização da fila, atividade e execução.              |
+| `apps/pomodoro/urls.py`                        | Rotas da API.                                            |
+| `apps/pomodoro/migrations/`                    | Criação dos modelos e constraints.                       |
+| `apps/pomodoro/tests.py`                       | Testes do domínio.                                       |
+| `SPEC-BACK-001`                                | Banco PostgreSQL.                                        |
+| `SPEC-BACK-002`                                | Categoria padrão e início idempotente.                   |
+| `SPEC-BACK-004`                                | Execução ativa persistente.                              |
+| `SPEC-BACK-005`                                | Sincronização e contador do frontend.                    |
+| `SPEC-BACK-006`                                | Correção da falha no início e conclusão.                 |
 
-## Decisoes pendentes
+---
 
-1. Confirmar se "pull" significa pool/lote de 30 atividades.
-2. Confirmar se a 6a pool e uma pool de revisao sem pulo ou se a regra se refere a sexta atividade/tentativa.
-3. Definir se favoritas e puladas precisam ser tabelas materializadas ou se eventos imutaveis atendem o produto.
-4. Definir escopo da fila: global, por API key, por grupo ou futuro usuario.
-5. Definir se a pool de revisao de puladas pode apresentar atividade ja feita no mesmo dia.
-6. Definir o comportamento sem item disponivel: `404` ou `204`.
+## 31. Testes obrigatórios
+
+### 31.1 Geração
+
+* primeira chamada cria fila;
+* apenas uma fila ativa é criada;
+* itens são persistidos;
+* posições são consistentes;
+* atividades inelegíveis não entram;
+* grupo é respeitado;
+* premium é respeitado;
+* chamadas simultâneas não criam duas filas.
+
+### 31.2 Apresentação
+
+* chamadas repetidas retornam o mesmo item;
+* item passa para apresentado;
+* leitura não consome;
+* item inválido expira;
+* próximo item válido é localizado.
+
+### 31.3 Pulo
+
+* item muda para `skipped`;
+* evento é criado;
+* contador é incrementado uma vez;
+* não cria `Schedule`;
+* não cria `History`;
+* repetição é idempotente;
+* próximo item é retornado;
+* `skip_locked` retorna `409`.
+
+### 31.4 Início
+
+* exige `queue_item_id`;
+* valida atividade correspondente;
+* cria execução;
+* associa item e execução;
+* item muda para iniciado;
+* repetição não duplica execução;
+* conflito retorna código estável;
+* funciona em PostgreSQL após `SPEC-BACK-006`.
+
+### 31.5 Conclusão
+
+* item muda para concluído;
+* evento positivo é criado;
+* histórico operacional é concluído;
+* repetição é idempotente;
+* contador é incrementado uma vez;
+* fechamento da pool é avaliado.
+
+### 31.6 Ponderação
+
+* favoritas recebem maior probabilidade;
+* neutras permanecem possíveis;
+* puladas são registradas;
+* seed controlada produz teste determinístico;
+* distribuição não depende de `Random()` diretamente na view.
+
+### 31.7 Ciclo de pools
+
+* pool fecha no limite;
+* nova fila é criada;
+* número da pool é incrementado;
+* histórico é preservado;
+* após cinco pools ocorre a regra definida;
+* pool de revisão contém apenas puladas, quando aplicável;
+* pulo é bloqueado na revisão;
+* ciclo posterior retorna ao modo normal.
+
+### 31.8 PostgreSQL
+
+Validar em PostgreSQL:
+
+* constraint parcial;
+* `select_for_update`;
+* geração concorrente;
+* pulo concorrente;
+* início concorrente;
+* fechamento concorrente;
+* campos temporais;
+* integridade transacional.
+
+---
+
+## 32. Critérios de aceite
+
+A Specification será considerada atendida quando:
+
+1. próxima atividade for obtida de fila persistida;
+2. refresh não trocar o item apresentado;
+3. `queue_id` for retornado;
+4. `queue_item_id` for retornado;
+5. o usuário puder pular;
+6. o pulo for persistido;
+7. o pulo influenciar filas futuras;
+8. o usuário puder iniciar o item apresentado;
+9. o início validar `queue_item_id`;
+10. a conclusão marcar o item;
+11. eventos positivos não forem duplicados;
+12. eventos de pulo não forem duplicados;
+13. apenas uma fila ativa existir por escopo;
+14. pool fechar no limite definido;
+15. nova fila usar ponderação;
+16. regras de premium forem preservadas;
+17. limite diário for preservado;
+18. itens inválidos expirarem;
+19. concorrência não criar inconsistências;
+20. o fluxo funcionar no PostgreSQL;
+21. o frontend conseguir consumir o contrato.
+
+---
+
+## 33. Definition of Done
+
+A implementação somente será considerada integralmente concluída quando:
+
+* models estiverem versionados;
+* migrations estiverem aplicadas;
+* serviços de domínio estiverem implementados;
+* view não concentrar regra de negócio;
+* endpoints estiverem documentados;
+* fila ativa possuir constraint;
+* pulo estiver implementado;
+* início estiver integrado;
+* conclusão estiver integrada;
+* eventos estiverem persistidos;
+* pools estiverem fechando corretamente;
+* ponderação estiver testada;
+* revisão de puladas estiver validada;
+* suíte automatizada estiver passando;
+* validação PostgreSQL estiver registrada;
+* frontend estiver homologado;
+* documentação estiver atualizada.
+
+---
+
+## 34. Pendências
+
+Permanecem pendentes de comprovação:
+
+* validar o fechamento real de uma pool com 30 itens;
+* validar cinco pools normais consecutivas;
+* validar a sexta pool de revisão;
+* confirmar que somente puladas entram na revisão;
+* confirmar bloqueio de pulo;
+* confirmar reinício do ciclo;
+* validar distribuição estatística dos pesos;
+* validar comportamento quando não existem puladas;
+* validar comportamento quando existem menos de 30 atividades;
+* validar fechamento concorrente;
+* validar o fluxo no PostgreSQL;
+* corrigir o início conforme `SPEC-BACK-006`;
+* homologar o frontend;
+* documentar payloads reais dos serializers.
+
+---
+
+## 35. Divergências corrigidas nesta revisão
+
+| Informação anterior                                   | Estado atualizado                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------ |
+| Estado “pronto para validação antes da implementação” | Models, serviços e endpoints já existem.                     |
+| Fila era apenas proposta                              | Fila persistida está implementada.                           |
+| `queue_item_id` era opcional no início                | É parte obrigatória do fluxo vigente.                        |
+| Pulo era apenas planejado                             | Endpoint e transição existem.                                |
+| Eventos eram apenas recomendação                      | Modelo de eventos foi implementado.                          |
+| Escopo estava indefinido                              | Existe `scope_key`.                                          |
+| Fila ativa sem constraint definida                    | Constraint condicional foi implementada.                     |
+| Estados eram apenas sugeridos                         | Estados estão incorporados ao domínio.                       |
+| Ausência de histórico de pulo                         | Histórico de preferência existe.                             |
+| Spec era TO-BE                                        | Atualizada para AS-IS vigente.                               |
+| Ciclo completo das pools era presumido                | Mantido como parcialmente confirmado até testes específicos. |
+
+---
+
+## 36. Documentação relacionada
+
+| Documento       | Relação                                           |
+| --------------- | ------------------------------------------------- |
+| `SPEC-BACK-001` | PostgreSQL, constraints e validação transacional. |
+| `SPEC-BACK-002` | Categoria padrão e contrato de início.            |
+| `SPEC-BACK-004` | Execução ativa persistente.                       |
+| `SPEC-BACK-005` | Sincronização do contador no frontend.            |
+| `SPEC-BACK-006` | Correção temporal do início e conclusão.          |
+
+---
+
+## 37. Histórico
+
+| Data       | Versão | Alteração                                                                                                                                                                   | Responsável             |
+| ---------- | -----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 2026-06-22 |    1.0 | Criação da proposta de fila persistida, pools, atividades favoritas, puladas e revisão.                                                                                     | Arquitetura de Software |
+| 2026-06-22 |    1.1 | Definição inicial dos modelos, estados, endpoints, concorrência e testes esperados.                                                                                         | Arquitetura de Software |
+| 2026-07-11 |    2.0 | Inclusão do identificador canônico `SPEC-BACK-003` e atualização de plano TO-BE para referência AS-IS com base nos models, services, endpoints e constraints implementados. | Arquitetura de Software |
+| 2026-07-11 |    2.1 | Registro de que o ciclo completo das pools e a revisão de puladas permanecem parcialmente confirmados até validação direcionada.                                            | Arquitetura de Software |
+| 2026-07-11 |    2.2 | Inclusão da dependência operacional da `SPEC-BACK-006` para correção do fluxo de início e conclusão no PostgreSQL.                                                          | Arquitetura de Software |
+
+---
+
+## 38. Conclusão
+
+A fila persistida está incorporada ao domínio do backend.
+
+O sistema já possui base estrutural para:
+
+* manter uma atividade apresentada;
+* permitir pulo;
+* registrar preferência;
+* associar execução ao item;
+* gerar seleção ponderada;
+* controlar pools;
+* impedir múltiplas filas ativas por escopo;
+* preservar histórico de consumo.
+
+A arquitetura principal da Specification foi implementada.
+
+A conclusão integral depende da validação do ciclo completo de pools, da pool de revisão de atividades puladas, da execução concorrente em PostgreSQL e da correção do início descrita na `SPEC-BACK-006`.

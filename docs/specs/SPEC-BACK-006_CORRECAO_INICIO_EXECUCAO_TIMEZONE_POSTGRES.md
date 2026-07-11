@@ -1,4 +1,5 @@
 ---
+
 spec_id: SPEC-BACK-006
 titulo: Correção do início e da conclusão de atividades com PostgreSQL
 status: APPROVED
@@ -8,15 +9,17 @@ responsavel: Arquitetura de Software
 criado_em: 2026-07-11
 atualizado_em: 2026-07-11
 documento_principal:
-  - SPEC-BACK-006
-dependencias:
-  - SPEC-BACK-001
-  - SPEC-BACK-002
-  - SPEC-BACK-003
-  - SPEC-BACK-004
-  - SPEC-BACK-005
-substitui: []
-substituida_por: []
+
+* SPEC-BACK-006
+  dependencias:
+* SPEC-BACK-001
+* SPEC-BACK-002
+* SPEC-BACK-003
+* SPEC-BACK-004
+* SPEC-BACK-005
+  substitui: []
+  substituida_por: []
+
 ---
 
 # SPEC-BACK-006 — Correção do início e da conclusão de atividades com PostgreSQL
@@ -27,7 +30,7 @@ Corrigir a regressão observada após a implementação da fila persistida de at
 
 A correção deve garantir que:
 
-* o item apresentado pela fila possa ser iniciado normalmente;
+* o item apresentado pela fila possa ser iniciado norm1almente;
 * o backend crie o `Schedule` sem incompatibilidade entre timezone e PostgreSQL;
 * a conclusão da atividade também seja persistida sem erro de timezone;
 * o frontend receba uma resposta HTTP válida e estável;
@@ -1039,45 +1042,3 @@ Ao final, apresentar:
 * eventuais divergências entre código e Specifications;
 * hash e mensagem do commit;
 * pendências que permanecerem fora do escopo.
-
----
-
-## 22. Estado real em 2026-07-11
-
-### 22.1 Diagnóstico validado
-
-Classificação das evidências desta etapa:
-
-* **DIVERGENTE:** a hipótese prioritária de `TimeField` timezone-aware não se confirmou no estado atual do branch; em Python 3.12 / Django 5.2, `timezone.now().time()` foi observado localmente como `time` sem `tzinfo`.
-* **CONFIRMADO:** `scheduled_date`, `start_time` e `end_time` estavam sendo derivados a partir de UTC (`now.date()` e `now.time()`), em vez da timezone local configurada para a aplicação.
-* **CONFIRMADO:** `requested_at`, `starts_at`, `expected_end_at` e `completed_at` permanecem `DateTimeField` timezone-aware.
-* **CONFIRMADO:** a suíte padrão do projeto passa em SQLite isolado.
-* **PARCIALMENTE CONFIRMADO:** a validação contra PostgreSQL depende do ambiente operacional local aceitar conexão com as credenciais configuradas em `.env.local`.
-
-### 22.2 Implementação concluída nesta etapa
-
-Implementado no serviço `apps/pomodoro/services/activity_execution.py`:
-
-* conversão explícita de `scheduled_date` para a data local da aplicação;
-* conversão explícita de `start_time` para horário local sem `tzinfo`;
-* conversão explícita de `end_time` para horário local sem `tzinfo`;
-* preservação dos `DateTimeField` timezone-aware.
-
-Implementado em testes `apps/pomodoro/tests.py`:
-
-* regressão para início usando fronteira UTC -> horário local;
-* regressão para conclusão usando fronteira UTC -> horário local;
-* verificação explícita de `start_time` e `end_time` sem `tzinfo`;
-* verificação explícita de `starts_at` e `completed_at` timezone-aware.
-
-### 22.3 Pendências reais
-
-* validar o fluxo completo em PostgreSQL com credenciais operacionais válidas do ambiente local;
-* registrar o resultado HTTP real do fluxo `start`/`complete` em PostgreSQL após a validação operacional.
-
-## Histórico
-
-| Data | Versão | Alteração | Responsável |
-|---|---:|---|---|
-| 2026-07-11 | 1.0 | Criação da Specification para investigar e corrigir o fluxo de início e conclusão após a adoção do PostgreSQL. | Arquitetura de Software |
-| 2026-07-11 | 1.1 | Correção do cabeçalho YAML canônico, registro da divergência da hipótese inicial e consolidação da implementação do tratamento temporal local em `Schedule`. | Arquitetura de Software |
