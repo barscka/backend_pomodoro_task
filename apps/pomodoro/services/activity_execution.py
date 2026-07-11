@@ -132,9 +132,10 @@ def start_activity(
             detail='O item da fila nao pode mais ser iniciado.',
         )
 
+    # PostgreSQL does not allow FOR UPDATE over the nullable side of the
+    # outer join created by select_related('queue_item__queue').
     existing = (
-        Schedule.objects.select_related('activity__category__group', 'queue_item__queue')
-        .select_for_update()
+        Schedule.objects.select_for_update()
         .filter(scope_key=scope_key, state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING])
         .order_by('-created_at')
         .first()
@@ -204,7 +205,7 @@ def start_activity(
 @transaction.atomic
 def complete_schedule(schedule: Schedule) -> Schedule:
     schedule = (
-        Schedule.objects.select_related('activity', 'execution_history', 'queue_item__queue')
+        Schedule.objects.select_related('activity', 'execution_history')
         .select_for_update()
         .get(pk=schedule.pk)
     )
