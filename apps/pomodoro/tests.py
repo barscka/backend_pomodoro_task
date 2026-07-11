@@ -1,11 +1,14 @@
 import importlib
+from datetime import datetime
+from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_api_key.models import APIKey
-from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from .models import (
     DEFAULT_CATEGORY_ID,
@@ -272,6 +275,28 @@ class ActivityQueueAndExecutionTests(APITestCase):
         self.assertEqual(active_response.data['queue_item_id'], next_response.data['queue_item_id'])
         self.assertEqual(active_response.data['activity']['id'], activity.id)
 
+    def test_start_uses_local_date_and_local_naive_time_fields(self):
+        activity = self._create_activity('Horario Local')
+        next_response = self.client.get('/api/activities/next/')
+        fixed_now = datetime(2026, 7, 11, 1, 30, tzinfo=ZoneInfo('UTC'))
+
+        with patch('apps.pomodoro.services.activity_execution.timezone.now', return_value=fixed_now):
+            start_response = self.client.post(
+                f'/api/activities/{activity.id}/start/',
+                {'queue_item_id': next_response.data['queue_item_id']},
+                format='json',
+            )
+
+        schedule = Schedule.objects.get(pk=start_response.data['schedule_id'])
+        local_now = timezone.localtime(fixed_now)
+
+        self.assertEqual(start_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(schedule.scheduled_date, local_now.date())
+        self.assertEqual(schedule.start_time, local_now.time().replace(tzinfo=None))
+        self.assertIsNone(schedule.start_time.tzinfo)
+        self.assertEqual(schedule.starts_at, fixed_now)
+        self.assertIsNotNone(schedule.starts_at.tzinfo)
+
     def test_start_conflicts_when_another_execution_is_already_running(self):
         first = self._create_activity('Primeira')
         second = self._create_activity('Segunda')
@@ -320,6 +345,37 @@ class ActivityQueueAndExecutionTests(APITestCase):
         self.assertEqual(active_response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(schedule.state, Schedule.STATE_COMPLETED)
         self.assertTrue(schedule.completed)
+
+    def test_complete_uses_local_naive_end_time_and_keeps_completed_at_aware(self):
+        activity = self._create_activity('Conclusao Local', duration=25)
+        next_response = self.client.get('/api/activities/next/')
+        start_response = self.client.post(
+            f'/api/activities/{activity.id}/start/',
+            {'queue_item_id': next_response.data['queue_item_id']},
+            format='json',
+        )
+        schedule = Schedule.objects.get(pk=start_response.data['schedule_id'])
+        fixed_completion = datetime(2026, 7, 11, 1, 45, tzinfo=ZoneInfo('UTC'))
+        schedule.expected_end_at = fixed_completion
+        schedule.save(update_fields=['expected_end_at'])
+
+        with patch('apps.pomodoro.services.activity_execution.timezone.now', return_value=fixed_completion):
+            complete_response = self.client.post(
+                '/api/activities/complete/',
+                {'schedule_id': schedule.id},
+                format='json',
+            )
+
+        schedule.refresh_from_db()
+        history = History.objects.get(schedule=schedule)
+        local_completion = timezone.localtime(fixed_completion)
+
+        self.assertEqual(complete_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(schedule.end_time, local_completion.time().replace(tzinfo=None))
+        self.assertIsNone(schedule.end_time.tzinfo)
+        self.assertEqual(schedule.completed_at, fixed_completion)
+        self.assertIsNotNone(schedule.completed_at.tzinfo)
+        self.assertEqual(history.end_time, fixed_completion)
 
     def test_status_and_reconcile_return_completed_execution_after_expiration(self):
         activity = self._create_activity('Reconcilia', duration=1)

@@ -23,6 +23,14 @@ class ActivityExecutionConflict(Exception):
         super().__init__(detail)
 
 
+def _local_schedule_date(current_time):
+    return timezone.localtime(current_time).date()
+
+
+def _local_schedule_time(current_time):
+    return timezone.localtime(current_time).time().replace(tzinfo=None)
+
+
 def build_scope_key(request) -> str:
     authorization = (request.META.get('HTTP_AUTHORIZATION') or '').strip()
     if not authorization:
@@ -125,8 +133,8 @@ def start_activity(
         with transaction.atomic():
             schedule = Schedule.objects.create(
                 activity=activity,
-                scheduled_date=now.date(),
-                start_time=now.time(),
+                scheduled_date=_local_schedule_date(now),
+                start_time=_local_schedule_time(now),
                 completed=False,
                 queue_item=queue_item,
                 scope_key=scope_key,
@@ -167,7 +175,7 @@ def complete_schedule(schedule: Schedule) -> Schedule:
     history.duration = max(int((completion_time - history.start_time).total_seconds() // 60), 0)
     history.save(update_fields=['end_time', 'duration'])
 
-    schedule.end_time = completion_time.time()
+    schedule.end_time = _local_schedule_time(completion_time)
     schedule.completed = True
     schedule.state = Schedule.STATE_COMPLETED
     schedule.completed_at = completion_time
