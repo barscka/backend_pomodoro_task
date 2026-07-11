@@ -4,6 +4,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -485,6 +486,78 @@ class ActivityQueueAndExecutionTests(APITestCase):
 
         self.assertEqual(retry_response.status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(retry_response.data['code'], 'queue_item_unavailable')
+
+    def test_start_returns_conflict_when_same_activity_same_day_already_exists(self):
+        activity = self._create_activity('Mesmo Dia')
+        next_response = self.client.get('/api/activities/next/')
+        queue_item_id = next_response.data['queue_item_id']
+        today = timezone.localdate()
+
+        Schedule.objects.create(
+            activity=activity,
+            scheduled_date=today,
+            start_time=timezone.localtime(timezone.now()).time().replace(tzinfo=None),
+            completed=True,
+            scope_key='other-scope',
+            state=Schedule.STATE_COMPLETED,
+            version=1,
+            requested_at=timezone.now(),
+            starts_at=timezone.now(),
+            completed_at=timezone.now(),
+        )
+
+        with patch(
+            'apps.pomodoro.services.activity_execution.Schedule.objects.create',
+            side_effect=IntegrityError('duplicate key value violates unique constraint'),
+        ):
+            response = self.client.post(
+                f'/api/activities/{activity.id}/start/',
+                {'queue_item_id': queue_item_id},
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data['code'], 'activity_already_scheduled_today')
+
+    def test_start_returns_json_500_when_unexpected_exception_happens(self):
+        activity = self._create_activity('Erro Inesperado')
+        next_response = self.client.get('/api/activities/next/')
+
+        with patch(
+            'apps.pomodoro.views.start_activity',
+            side_effect=RuntimeError('boom'),
+        ):
+            response = self.client.post(
+                f'/api/activities/{activity.id}/start/',
+                {'queue_item_id': next_response.data['queue_item_id']},
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.data['code'], 'activity_start_failed')
+        self.assertEqual(
+            response.data['detail'],
+            'Nao foi possivel iniciar a atividade no backend.',
+        )
+
+    def test_skip_returns_json_500_when_unexpected_exception_happens(self):
+        self._create_activity('Primeira')
+        next_response = self.client.get('/api/activities/next/')
+
+        with patch(
+            'apps.pomodoro.views.skip_item',
+            side_effect=RuntimeError('boom'),
+        ):
+            response = self.client.post(
+                f"/api/activity-queue/items/{next_response.data['queue_item_id']}/skip/"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.data['code'], 'queue_item_skip_failed')
+        self.assertEqual(
+            response.data['detail'],
+            'Nao foi possivel pular a atividade no backend.',
+        )
 
     def test_next_skips_stale_presented_item_with_completed_schedule(self):
         first = self._create_activity('Primeira')

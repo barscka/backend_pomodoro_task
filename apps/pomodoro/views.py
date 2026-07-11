@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -26,6 +28,8 @@ from .services.activity_queue import (
     present_next_item,
     skip_item,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -104,6 +108,18 @@ class ActivityViewSet(viewsets.ModelViewSet):
                     context={'request': request},
                 ).data
             return Response(payload, status=status.HTTP_409_CONFLICT)
+        except Exception:
+            logger.exception(
+                'Unexpected failure while starting activity',
+                extra={'activity_id': activity.id, 'queue_item_id': queue_item.id},
+            )
+            return Response(
+                {
+                    "code": "activity_start_failed",
+                    "detail": "Nao foi possivel iniciar a atividade no backend.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         response_data = ActivityExecutionSerializer(schedule, context={'request': request}).data
         response_data['schedule_id'] = schedule.id
@@ -199,6 +215,18 @@ class ActivityQueueItemViewSet(viewsets.GenericViewSet):
             return Response(
                 {"code": exc.code, "detail": exc.detail},
                 status=status.HTTP_409_CONFLICT,
+            )
+        except Exception:
+            logger.exception(
+                'Unexpected failure while skipping queue item',
+                extra={'queue_item_id': pk},
+            )
+            return Response(
+                {
+                    "code": "queue_item_skip_failed",
+                    "detail": "Nao foi possivel pular a atividade no backend.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         payload = {

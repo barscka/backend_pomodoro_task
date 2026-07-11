@@ -31,6 +31,47 @@ def _local_schedule_time(current_time):
     return timezone.localtime(current_time).time().replace(tzinfo=None)
 
 
+def _raise_integrity_conflict(*, activity: Activity, queue_item: ActivityQueueItem, scope_key: str, current_time):
+    conflicting = get_active_schedule(scope_key)
+    if conflicting and conflicting.queue_item_id == queue_item.id:
+        return conflicting, False
+
+    same_queue_item = (
+        Schedule.objects.select_related('activity__category__group', 'queue_item__queue')
+        .filter(queue_item=queue_item)
+        .order_by('-created_at')
+        .first()
+    )
+    if same_queue_item:
+        if same_queue_item.state in [Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]:
+            return same_queue_item, False
+        raise ActivityExecutionConflict(
+            code='queue_item_unavailable',
+            detail='O item da fila informado ja foi consumido por uma execucao anterior.',
+        )
+
+    same_activity_same_day = (
+        Schedule.objects.select_related('activity__category__group', 'queue_item__queue')
+        .filter(
+            activity=activity,
+            scheduled_date=_local_schedule_date(current_time),
+        )
+        .order_by('-created_at')
+        .first()
+    )
+    if same_activity_same_day:
+        raise ActivityExecutionConflict(
+            code='activity_already_scheduled_today',
+            detail='Ja existe um agendamento para esta atividade nesta data.',
+            schedule=same_activity_same_day if same_activity_same_day.state in [Schedule.STATE_PREPARING, Schedule.STATE_RUNNING] else None,
+        )
+
+    raise ActivityExecutionConflict(
+        code='activity_start_conflict',
+        detail='Nao foi possivel iniciar a atividade por um conflito de persistencia.',
+    )
+
+
 def build_scope_key(request) -> str:
     authorization = (request.META.get('HTTP_AUTHORIZATION') or '').strip()
     if not authorization:
@@ -145,10 +186,12 @@ def start_activity(
                 expected_end_at=expected_end_at,
             )
     except IntegrityError:
-        conflicting = get_active_schedule(scope_key)
-        if conflicting and conflicting.queue_item_id == queue_item.id:
-            return conflicting, False
-        raise
+        return _raise_integrity_conflict(
+            activity=activity,
+            queue_item=queue_item,
+            scope_key=scope_key,
+            current_time=now,
+        )
 
     History.objects.create(
         activity=activity,
