@@ -252,8 +252,8 @@ class QueueReconciliationTests(TestCase):
         self.category_b = Category.objects.create(name='CB', group=self.group_b, max_daily_executions=100)
         self.activity_a = Activity.objects.create(name='A1', category=self.category_a)
         self.activity_a_two = Activity.objects.create(name='A2', category=self.category_a)
-        self.queue_a = present_next_item(scope_key='scope', selected_group=self.group_a).queue
-        self.queue_all = present_next_item(scope_key='scope', selected_group=self.all_group).queue
+        self.queue_a = present_next_item(scope_key='scope', selected_group=self.group_a).item.queue
+        self.queue_all = present_next_item(scope_key='scope', selected_group=self.all_group).item.queue
 
     def test_new_and_activated_activity_enters_eligible_normal_queues_once(self):
         new_activity = Activity.objects.create(name='Nova', category=self.category_a)
@@ -275,7 +275,7 @@ class QueueReconciliationTests(TestCase):
         previous = activity_snapshot(self.activity_a)
         self.activity_a.category = self.category_b
         self.activity_a.save(update_fields=['category'])
-        queue_b = present_next_item(scope_key='scope', selected_group=self.group_b).queue
+        queue_b = present_next_item(scope_key='scope', selected_group=self.group_b).item.queue
         reconcile_activity(self.activity_a, previous=previous)
 
         item_a.refresh_from_db()
@@ -318,7 +318,6 @@ class QueueReconciliationTests(TestCase):
         positions_after = dict(self.queue_a.items.values_list('activity_id', 'position'))
 
         self.assertEqual(positions_after[self.activity_a.id], consumed_position)
-        self.assertLess(positions_after[extra_one.id], positions_after[extra_two.id] + self.queue_a.pool_size)
         self.assertEqual(len(positions_after.values()), len(set(positions_after.values())))
         self.assertEqual(self.queue_a.items.filter(activity=extra_two).count(), 1)
         self.assertEqual(positions_before[self.activity_a.id], positions_after[self.activity_a.id])

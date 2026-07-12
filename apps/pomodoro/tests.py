@@ -494,7 +494,7 @@ class ActivityQueueAndExecutionTests(APITestCase):
         )
 
         self.assertEqual(retry_response.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(retry_response.data['code'], 'queue_item_unavailable')
+        self.assertEqual(retry_response.data['code'], 'queue_item_consumed')
 
     def test_start_returns_conflict_when_same_activity_same_day_already_exists(self):
         activity = self._create_activity('Mesmo Dia')

@@ -19,14 +19,16 @@ from apps.pomodoro.services.activity_queue import (
     category_started_count,
     finalize_queue_if_finished,
     group_remaining_minutes,
+    queue_context,
 )
 
 
 class ActivityExecutionConflict(Exception):
-    def __init__(self, code: str, detail: str, schedule: Schedule | None = None):
+    def __init__(self, code: str, detail: str, schedule: Schedule | None = None, *, payload=None):
         self.code = code
         self.detail = detail
         self.schedule = schedule
+        self.payload = payload or {}
         super().__init__(detail)
 
 
@@ -90,7 +92,7 @@ def get_active_schedule(scope_key: str) -> Schedule | None:
     schedule = (
         Schedule.objects.select_related(
             'activity__category__group',
-            'queue_item__queue',
+            'queue_item__queue__group',
         )
         .filter(scope_key=scope_key, state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING])
         .order_by('-created_at')
@@ -139,12 +141,6 @@ def start_activity(
             detail='O item da fila nao pertence ao escopo atual.',
         )
 
-    if queue_item.queue.state != queue_item.queue.STATE_ACTIVE:
-        raise ActivityExecutionConflict(
-            code='queue_item_unavailable',
-            detail='A fila do item informado nao esta mais ativa.',
-        )
-
     if queue_item.state == ActivityQueueItem.STATE_STARTED:
         existing_item_schedule = Schedule.objects.filter(
             queue_item=queue_item,
@@ -155,27 +151,71 @@ def start_activity(
         raise ActivityExecutionConflict(
             code='queue_item_unavailable',
             detail='O item iniciado nao possui mais uma execucao aberta.',
+            payload={
+                **queue_context(queue_item.queue),
+                'queue_item_id': queue_item.id,
+                'recoverable': True,
+            },
+        )
+
+    if queue_item.state == ActivityQueueItem.STATE_EXPIRED:
+        raise ActivityExecutionConflict(
+            code='queue_item_expired',
+            detail='O item expirou e a fila deve ser atualizada.',
+            payload={
+                **queue_context(queue_item.queue),
+                'queue_item_id': queue_item.id,
+                'recoverable': True,
+            },
         )
 
     if queue_item.state in [ActivityQueueItem.STATE_SKIPPED, ActivityQueueItem.STATE_COMPLETED]:
         raise ActivityExecutionConflict(
-            code='queue_item_unavailable',
-            detail='O item da fila nao pode mais ser iniciado.',
+            code='queue_item_consumed',
+            detail='O item da fila ja foi consumido.',
+            payload={
+                **queue_context(queue_item.queue),
+                'queue_item_id': queue_item.id,
+                'recoverable': True,
+            },
+        )
+
+    if queue_item.queue.state != queue_item.queue.STATE_ACTIVE:
+        raise ActivityExecutionConflict(
+            code='queue_reconciled',
+            detail='A fila do item foi reconciliada e deve ser atualizada.',
+            payload={
+                **queue_context(queue_item.queue),
+                'queue_item_id': queue_item.id,
+                'recoverable': True,
+            },
         )
 
     if not activity.active:
         raise ActivityExecutionConflict(
-            code='activity_inactive',
-            detail='A atividade informada esta inativa.',
+            code='activity_no_longer_eligible',
+            detail='A atividade nao esta mais elegivel para inicio.',
+            payload={
+                **queue_context(queue_item.queue),
+                'queue_item_id': queue_item.id,
+                'recoverable': True,
+            },
         )
 
     category = Category.objects.select_for_update().get(pk=activity.category_id)
     group = Group.objects.select_for_update().get(pk=queue_item.queue.group_id)
 
-    if category_started_count(category) >= category.max_daily_executions:
+    started_daily_executions = category_started_count(category)
+    if started_daily_executions >= category.max_daily_executions:
         raise ActivityExecutionConflict(
             code='daily_limit_reached',
             detail='O limite diario da categoria foi atingido.',
+            payload={
+                'category_id': category.id,
+                'category_name': category.name,
+                'max_daily_executions': category.max_daily_executions,
+                'started_daily_executions': started_daily_executions,
+            },
         )
 
     remaining_minutes = group_remaining_minutes(group)
@@ -183,6 +223,10 @@ def start_activity(
         raise ActivityExecutionConflict(
             code='group_daily_minutes_reached',
             detail='A atividade nao cabe no saldo diario restante do grupo.',
+            payload={
+                **queue_context(queue_item.queue),
+                'activity_duration': activity.duration,
+            },
         )
 
     # PostgreSQL does not allow FOR UPDATE over the nullable side of the
@@ -214,8 +258,13 @@ def start_activity(
         if existing_same.state in [Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]:
             return existing_same, False
         raise ActivityExecutionConflict(
-            code='queue_item_unavailable',
+            code='queue_item_consumed',
             detail='O item da fila informado ja foi consumido por uma execucao anterior.',
+            payload={
+                **queue_context(queue_item.queue),
+                'queue_item_id': queue_item.id,
+                'recoverable': True,
+            },
         )
 
     expected_end_at = now + timedelta(minutes=activity.duration)

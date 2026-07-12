@@ -389,13 +389,26 @@
                   "  const data = pm.response.json();",
                   "  pm.test('queue keeps additive group and source fields', function () {",
                   "    pm.expect(data).to.have.property('queue_group_id');",
+                  "    pm.expect(data).to.have.property('queue_group_name');",
+                  "    pm.expect(data).to.have.property('position');",
                   "    pm.expect(data).to.have.property('source_queue_id');",
+                  "    pm.expect(data).to.have.property('group_max_daily_minutes');",
+                  "    pm.expect(data).to.have.property('group_consumed_daily_minutes');",
+                  "    pm.expect(data).to.have.property('group_remaining_daily_minutes');",
                   "  });",
                   "  if (data.queue_item_id) pm.environment.set('queue_item_id', String(data.queue_item_id));",
                   "  if (data.queue_id) pm.environment.set('queue_id', String(data.queue_id));",
                   "  if (data.id) pm.environment.set('activity_id', String(data.id));",
                   "  if (data.name) pm.environment.set('activity_name', data.name);",
                   "  if (data.category) pm.environment.set('category_id', String(data.category));",
+                  "} else {",
+                  "  const data = pm.response.json();",
+                  "  pm.test('empty queue has structured reason and context', function () {",
+                  "    pm.expect(data.code).to.eql('no_activity_available');",
+                  "    pm.expect(data).to.have.property('reason');",
+                  "    pm.expect(data).to.have.property('queue_group_id');",
+                  "    pm.expect(data).to.have.property('group_remaining_daily_minutes');",
+                  "  });",
                   "}"
                 ]
               }
@@ -418,7 +431,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"queue_item_id\": {{queue_item_id}},\n  \"group_id\": {{group_id}}\n}"
+              "raw": "{\n  \"queue_item_id\": {{queue_item_id}}\n}"
             },
             "url": {
               "raw": "{{base_url}}/activities/{{activity_id}}/start/",
@@ -443,6 +456,11 @@
                   "  pm.expect([200, 201, 400, 404, 409, 500]).to.include(pm.response.code);",
                   "});",
                   "const data = pm.response.json();",
+                  "if ([200, 201].includes(pm.response.code)) {",
+                  "  pm.test('execution exposes canonical queue context', function () {",
+                  "    ['queue_group_id', 'queue_group_name', 'queue_mode', 'skip_locked', 'group_max_daily_minutes', 'group_consumed_daily_minutes', 'group_remaining_daily_minutes'].forEach((field) => pm.expect(data).to.have.property(field));",
+                  "  });",
+                  "}",
                   "if (data.schedule_id) pm.environment.set('schedule_id', String(data.schedule_id));",
                   "if (data.execution_id) pm.environment.set('execution_id', String(data.execution_id));",
                   "if (data.queue_item_id) pm.environment.set('queue_item_id', String(data.queue_item_id));"
@@ -515,6 +533,9 @@
                   "});",
                   "if (pm.response.code === 200) {",
                   "  const data = pm.response.json();",
+                  "  pm.test('active execution exposes canonical queue context', function () {",
+                  "    ['queue_group_id', 'queue_group_name', 'queue_mode', 'skip_locked', 'group_max_daily_minutes', 'group_consumed_daily_minutes', 'group_remaining_daily_minutes'].forEach((field) => pm.expect(data).to.have.property(field));",
+                  "  });",
                   "  if (data.schedule_id) pm.environment.set('schedule_id', String(data.schedule_id));",
                   "  if (data.execution_id) pm.environment.set('execution_id', String(data.execution_id));",
                   "  if (data.queue_item_id) pm.environment.set('queue_item_id', String(data.queue_item_id));",

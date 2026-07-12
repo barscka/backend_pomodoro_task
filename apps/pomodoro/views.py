@@ -71,16 +71,35 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def next(self, request):
-        item = present_next_item(
+        result = present_next_item(
             scope_key=build_scope_key(request),
             selected_group=get_requested_group(request),
         )
-        if not item:
+        if not result.item:
             return Response(
-                {"detail": "Nenhuma atividade disponivel"},
+                {
+                    "code": "no_activity_available",
+                    "detail": "Nenhuma atividade disponivel para este grupo.",
+                    "reason": result.reason or "unknown",
+                    "queue_group_id": result.group.id,
+                    "queue_group_name": result.group.name,
+                    "group_max_daily_minutes": result.group.max_daily_minutes,
+                    "group_consumed_daily_minutes": result.consumed_daily_minutes,
+                    "group_remaining_daily_minutes": result.remaining_daily_minutes,
+                },
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(ActivityQueueItemSerializer(item, context={'request': request}).data)
+        return Response(ActivityQueueItemSerializer(
+            result.item,
+            context={
+                'request': request,
+                'group_daily_metrics': {
+                    'group_max_daily_minutes': result.group.max_daily_minutes,
+                    'group_consumed_daily_minutes': result.consumed_daily_minutes,
+                    'group_remaining_daily_minutes': result.remaining_daily_minutes,
+                },
+            },
+        ).data)
 
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
@@ -113,6 +132,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
             payload = {
                 "code": exc.code,
                 "detail": exc.detail,
+                **exc.payload,
             }
             if exc.schedule:
                 payload["active_execution"] = ActivityExecutionSerializer(
@@ -153,7 +173,10 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
-            schedule = Schedule.objects.get(pk=schedule_id, scope_key=build_scope_key(request))
+            schedule = Schedule.objects.select_related(
+                'activity__category__group',
+                'queue_item__queue__group',
+            ).get(pk=schedule_id, scope_key=build_scope_key(request))
         except Schedule.DoesNotExist:
             return Response(
                 {"error": "Agendamento nao encontrado"},
@@ -161,6 +184,10 @@ class ActivityViewSet(viewsets.ModelViewSet):
             )
 
         schedule = complete_schedule(schedule)
+        schedule = Schedule.objects.select_related(
+            'activity__category__group',
+            'queue_item__queue__group',
+        ).get(pk=schedule.pk)
         response_data = ActivityExecutionSerializer(schedule, context={'request': request}).data
         response_data['schedule_id'] = schedule.id
         response_data['status'] = 'completed'
@@ -194,7 +221,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         try:
             schedule = Schedule.objects.select_related(
                 'activity__category__group',
-                'queue_item__queue',
+                'queue_item__queue__group',
             ).get(pk=schedule_id, scope_key=build_scope_key(request))
         except Schedule.DoesNotExist:
             return Response(
@@ -225,7 +252,7 @@ class ActivityQueueItemViewSet(viewsets.GenericViewSet):
             )
         except QueueConflict as exc:
             return Response(
-                {"code": exc.code, "detail": exc.detail},
+                {"code": exc.code, "detail": exc.detail, **exc.payload},
                 status=status.HTTP_409_CONFLICT,
             )
         except Exception:
@@ -262,7 +289,10 @@ class ActivityQueueItemViewSet(viewsets.GenericViewSet):
 
 class ActivityExecutionViewSet(viewsets.GenericViewSet):
     permission_classes = [HasAPIKey]
-    queryset = Schedule.objects.select_related('activity__category__group', 'queue_item__queue')
+    queryset = Schedule.objects.select_related(
+        'activity__category__group',
+        'queue_item__queue__group',
+    )
 
     def retrieve(self, request, pk=None):
         try:

@@ -8,6 +8,7 @@ from .models import (
     History,
     Schedule,
 )
+from .services.activity_queue import group_daily_metrics
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -81,17 +82,76 @@ class HistorySerializer(serializers.ModelSerializer):
         return obj.end_time is not None
 
 
-class ActivityQueueItemSerializer(serializers.ModelSerializer):
+class QueueContextSerializerMixin:
+    def _queue(self, obj):
+        if isinstance(obj, ActivityQueueItem):
+            return obj.queue
+        if not obj.queue_item_id:
+            return None
+        return obj.queue_item.queue
+
+    def _group_metrics(self, obj):
+        queue = self._queue(obj)
+        if queue is None:
+            return None
+        provided = self.context.get('group_daily_metrics')
+        if provided is not None:
+            return provided
+        cache = getattr(self, '_group_metrics_cache', None)
+        if cache is None or cache[0] != queue.group_id:
+            cache = (queue.group_id, group_daily_metrics(queue.group))
+            self._group_metrics_cache = cache
+        return cache[1]
+
+    def get_queue_id(self, obj):
+        queue = self._queue(obj)
+        return queue.id if queue else None
+
+    def get_queue_group_id(self, obj):
+        queue = self._queue(obj)
+        return queue.group_id if queue else None
+
+    def get_queue_group_name(self, obj):
+        queue = self._queue(obj)
+        return queue.group.name if queue else None
+
+    def get_queue_mode(self, obj):
+        queue = self._queue(obj)
+        return queue.mode if queue else None
+
+    def get_skip_locked(self, obj):
+        queue = self._queue(obj)
+        return queue.skip_locked if queue else None
+
+    def get_group_max_daily_minutes(self, obj):
+        metrics = self._group_metrics(obj)
+        return metrics['group_max_daily_minutes'] if metrics else None
+
+    def get_group_consumed_daily_minutes(self, obj):
+        metrics = self._group_metrics(obj)
+        return metrics['group_consumed_daily_minutes'] if metrics else None
+
+    def get_group_remaining_daily_minutes(self, obj):
+        metrics = self._group_metrics(obj)
+        return metrics['group_remaining_daily_minutes'] if metrics else None
+
+
+class ActivityQueueItemSerializer(QueueContextSerializerMixin, serializers.ModelSerializer):
     activity = ActivitySerializer(read_only=True)
     queue_item_id = serializers.IntegerField(source='id', read_only=True)
-    queue_id = serializers.IntegerField(read_only=True)
-    queue_mode = serializers.CharField(source='queue.mode', read_only=True)
+    queue_id = serializers.SerializerMethodField()
+    queue_mode = serializers.SerializerMethodField()
     pool_number = serializers.IntegerField(source='queue.pool_number', read_only=True)
     pool_size = serializers.IntegerField(source='queue.pool_size', read_only=True)
     consumed_count = serializers.IntegerField(source='queue.consumed_count', read_only=True)
-    skip_locked = serializers.BooleanField(source='queue.skip_locked', read_only=True)
-    queue_group_id = serializers.IntegerField(source='queue.group_id', read_only=True)
+    skip_locked = serializers.SerializerMethodField()
+    queue_group_id = serializers.SerializerMethodField()
+    queue_group_name = serializers.SerializerMethodField()
+    position = serializers.IntegerField(read_only=True)
     source_queue_id = serializers.IntegerField(source='queue.source_queue_id', read_only=True)
+    group_max_daily_minutes = serializers.SerializerMethodField()
+    group_consumed_daily_minutes = serializers.SerializerMethodField()
+    group_remaining_daily_minutes = serializers.SerializerMethodField()
     id = serializers.IntegerField(source='activity.id', read_only=True)
     name = serializers.CharField(source='activity.name', read_only=True)
     description = serializers.CharField(source='activity.description', read_only=True)
@@ -123,15 +183,27 @@ class ActivityQueueItemSerializer(serializers.ModelSerializer):
             'consumed_count',
             'skip_locked',
             'queue_group_id',
+            'queue_group_name',
+            'position',
             'source_queue_id',
+            'group_max_daily_minutes',
+            'group_consumed_daily_minutes',
+            'group_remaining_daily_minutes',
             'state',
         ]
 
 
-class ActivityExecutionSerializer(serializers.ModelSerializer):
+class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.ModelSerializer):
     activity = ActivitySerializer(read_only=True)
-    queue_id = serializers.IntegerField(source='queue_item.queue_id', read_only=True)
-    queue_item_id = serializers.IntegerField(read_only=True)
+    queue_id = serializers.SerializerMethodField()
+    queue_item_id = serializers.IntegerField(read_only=True, allow_null=True)
+    queue_group_id = serializers.SerializerMethodField()
+    queue_group_name = serializers.SerializerMethodField()
+    queue_mode = serializers.SerializerMethodField()
+    skip_locked = serializers.SerializerMethodField()
+    group_max_daily_minutes = serializers.SerializerMethodField()
+    group_consumed_daily_minutes = serializers.SerializerMethodField()
+    group_remaining_daily_minutes = serializers.SerializerMethodField()
     execution_id = serializers.IntegerField(source='id', read_only=True)
     server_now = serializers.SerializerMethodField()
     remaining_seconds = serializers.SerializerMethodField()
@@ -143,6 +215,13 @@ class ActivityExecutionSerializer(serializers.ModelSerializer):
             'id',
             'queue_id',
             'queue_item_id',
+            'queue_group_id',
+            'queue_group_name',
+            'queue_mode',
+            'skip_locked',
+            'group_max_daily_minutes',
+            'group_consumed_daily_minutes',
+            'group_remaining_daily_minutes',
             'state',
             'activity',
             'requested_at',

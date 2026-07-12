@@ -1,9 +1,9 @@
 ---
 spec_id: SPEC-BACK-008
 titulo: Contratos de contexto, posição, saldo e motivo de indisponibilidade da fila
-status: DRAFT
-fase: TO_BE
-situacao: PRONTA_PARA_IMPLEMENTACAO
+status: APPROVED
+fase: AS_IS
+situacao: IMPLEMENTADA
 responsavel: Arquitetura de Software
 criado_em: 2026-07-12
 atualizado_em: 2026-07-12
@@ -290,21 +290,21 @@ Se o ambiente usar Poetry, prefixar com `poetry run`. Nenhum teste pode usar ban
 
 ## 12. Critérios de aceite
 
-* [ ] item retorna posição real;
-* [ ] grupo da fila é explícito por ID e nome;
-* [ ] `Todos` retorna grupo default;
-* [ ] todas as respostas de execução possuem contexto idêntico;
-* [ ] execução de outro dispositivo é descrita sem estado local;
-* [ ] grupo limitado retorna máximo, consumo e saldo;
-* [ ] grupo ilimitado retorna saldo `null`;
-* [ ] fila vazia possui código e motivo;
-* [ ] causas ambíguas não são inventadas;
-* [ ] expirado e consumido possuem códigos estáveis;
-* [ ] `skip_locked` e pulo idempotente são preservados;
-* [ ] não há N+1 nos endpoints de polling;
-* [ ] testes passam em banco isolado;
-* [ ] Postman e documentação são atualizados;
-* [ ] nenhuma regra de fila é alterada fora do escopo.
+* [x] item retorna posição real;
+* [x] grupo da fila é explícito por ID e nome;
+* [x] `Todos` retorna grupo default;
+* [x] todas as respostas de execução possuem contexto idêntico;
+* [x] execução de outro dispositivo é descrita sem estado local;
+* [x] grupo limitado retorna máximo, consumo e saldo;
+* [x] grupo ilimitado retorna saldo `null`;
+* [x] fila vazia possui código e motivo;
+* [x] causas ambíguas não são inventadas;
+* [x] expirado e consumido possuem códigos estáveis;
+* [x] `skip_locked` e pulo idempotente são preservados;
+* [x] não há N+1 nos endpoints de polling;
+* [x] testes passam em banco isolado;
+* [x] Postman e documentação são atualizados;
+* [x] nenhuma regra de fila é alterada fora do escopo.
 
 ## 13. Riscos
 
@@ -332,3 +332,23 @@ Migrations somente se a implementação demonstrar necessidade real.
 | Data | Alteração |
 | --- | --- |
 | 2026-07-12 | Criação após revalidação das pendências identificadas pela SPEC-FRONT-008. |
+| 2026-07-12 | Implementação dos contratos tipados, contexto canônico, saldos, motivos e códigos funcionais. |
+
+## 16. Implementação confirmada
+
+`present_next_item()` retorna `QueuePresentationResult`, contendo item ou motivo conservador de indisponibilidade. A view apenas converte esse resultado em HTTP 200 ou 404.
+
+Os serializers de item e execução reutilizam um contexto centralizado cuja fonte é sempre `queue_item.queue.group`. O cálculo de métricas é armazenado por instância do serializer, evitando uma agregação por campo. Execuções sem `queue_item` retornam todos os campos de contexto como `null`.
+
+Os códigos implementados são:
+
+```text
+queue_item_expired
+queue_item_consumed
+activity_no_longer_eligible
+queue_reconciled
+group_daily_minutes_reached
+daily_limit_reached
+```
+
+O diagnóstico de fila vazia somente usa motivos específicos quando as consultas comprovam ausência de atividades, saldo zerado, nenhuma atividade que caiba no saldo ou categorias esgotadas. Demais situações retornam `unknown`.

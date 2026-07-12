@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from collections import Counter
+from dataclasses import dataclass
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Max, Q, Sum
@@ -20,10 +21,41 @@ from apps.pomodoro.models import (
 
 
 class QueueConflict(Exception):
-    def __init__(self, code: str, detail: str):
+    def __init__(self, code: str, detail: str, *, payload=None):
         self.code = code
         self.detail = detail
+        self.payload = payload or {}
         super().__init__(detail)
+
+
+@dataclass(frozen=True)
+class QueuePresentationResult:
+    item: ActivityQueueItem | None
+    reason: str | None
+    group: Group
+    consumed_daily_minutes: int
+    remaining_daily_minutes: int | None
+
+
+def group_daily_metrics(group: Group) -> dict[str, int | None]:
+    consumed = group_reserved_minutes(group)
+    remaining = None
+    if group.max_daily_minutes:
+        remaining = max(group.max_daily_minutes - consumed, 0)
+    return {
+        'group_max_daily_minutes': group.max_daily_minutes,
+        'group_consumed_daily_minutes': consumed,
+        'group_remaining_daily_minutes': remaining,
+    }
+
+
+def queue_context(queue: ActivityQueue) -> dict[str, object]:
+    return {
+        'queue_id': queue.id,
+        'queue_group_id': queue.group_id,
+        'queue_group_name': queue.group.name,
+        **group_daily_metrics(queue.group),
+    }
 
 
 def default_group() -> Group:
@@ -76,6 +108,37 @@ def group_remaining_minutes(group: Group, *, day=None) -> int | None:
     if group.max_daily_minutes == 0:
         return None
     return max(group.max_daily_minutes - group_reserved_minutes(group, day=day), 0)
+
+
+def diagnose_empty_queue(group: Group) -> str:
+    base = Activity.objects.filter(active=True, category__isnull=False)
+    if not group.is_default:
+        base = base.filter(category__group=group)
+    if not base.exists():
+        return 'no_activities'
+
+    remaining = group_remaining_minutes(group)
+    if remaining == 0:
+        return 'group_daily_time_limit_reached'
+
+    today = timezone.localdate()
+    available_categories = Category.objects.filter(activities__in=base).annotate(
+        started=Count(
+            'activities__histories',
+            filter=Q(activities__histories__start_time__date=today),
+        )
+    ).filter(started__lt=F('max_daily_executions'))
+    if not available_categories.exists():
+        return 'category_daily_limit_reached'
+
+    candidates = base.filter(category__in=available_categories).exclude(
+        id__in=History.objects.filter(end_time__date=today).values('activity_id')
+    )
+    if remaining is not None and candidates.exists() and not candidates.filter(
+        duration__lte=remaining
+    ).exists():
+        return 'no_activity_fits_remaining_time'
+    return 'unknown'
 
 
 def category_started_count(category: Category, *, day=None) -> int:
@@ -302,27 +365,55 @@ def get_or_create_active_queue(*, scope_key: str, selected_group: Group | None):
 
 
 @transaction.atomic
-def present_next_item(*, scope_key: str, selected_group: Group | None):
+def present_next_item(*, scope_key: str, selected_group: Group | None) -> QueuePresentationResult:
     group = normalize_group(selected_group)
     for _attempt in range(3):
         queue = get_or_create_active_queue(scope_key=scope_key, selected_group=group)
         if not queue:
-            return None
-        item = queue.items.select_related('activity__category__group').filter(
+            metrics = group_daily_metrics(group)
+            return QueuePresentationResult(
+                item=None,
+                reason=diagnose_empty_queue(group),
+                group=group,
+                consumed_daily_minutes=metrics['group_consumed_daily_minutes'],
+                remaining_daily_minutes=metrics['group_remaining_daily_minutes'],
+            )
+        item = queue.items.select_related('queue__group', 'activity__category__group').filter(
             state__in=[ActivityQueueItem.STATE_PRESENTED, ActivityQueueItem.STATE_STARTED]
         ).order_by('position').first()
         if item:
-            return item
-        item = queue.items.select_related('activity__category__group').filter(
+            metrics = group_daily_metrics(group)
+            return QueuePresentationResult(
+                item=item,
+                reason=None,
+                group=group,
+                consumed_daily_minutes=metrics['group_consumed_daily_minutes'],
+                remaining_daily_minutes=metrics['group_remaining_daily_minutes'],
+            )
+        item = queue.items.select_related('queue__group', 'activity__category__group').filter(
             state=ActivityQueueItem.STATE_PENDING
         ).order_by('position').first()
         if item:
             item.state = ActivityQueueItem.STATE_PRESENTED
             item.presented_at = timezone.now()
             item.save(update_fields=['state', 'presented_at'])
-            return item
+            metrics = group_daily_metrics(group)
+            return QueuePresentationResult(
+                item=item,
+                reason=None,
+                group=group,
+                consumed_daily_minutes=metrics['group_consumed_daily_minutes'],
+                remaining_daily_minutes=metrics['group_remaining_daily_minutes'],
+            )
         finalize_queue_if_finished(queue)
-    return None
+    metrics = group_daily_metrics(group)
+    return QueuePresentationResult(
+        item=None,
+        reason='unknown',
+        group=group,
+        consumed_daily_minutes=metrics['group_consumed_daily_minutes'],
+        remaining_daily_minutes=metrics['group_remaining_daily_minutes'],
+    )
 
 
 @transaction.atomic
@@ -334,15 +425,27 @@ def skip_item(*, queue_item_id: int, scope_key: str):
     if queue.scope_key != scope_key:
         raise QueueConflict('queue_item_not_found', 'O item da fila nao pertence ao escopo atual.')
     if queue.skip_locked:
-        raise QueueConflict('skip_locked', 'Esta pool permite apenas executar atividades puladas.')
+        raise QueueConflict(
+            'skip_locked',
+            'Esta pool permite apenas executar atividades puladas.',
+            payload={**queue_context(queue), 'queue_item_id': item.id, 'recoverable': False},
+        )
     if item.state == ActivityQueueItem.STATE_STARTED:
         raise QueueConflict('active_execution_running', 'A atividade atual ja esta em execucao.')
     if item.state == ActivityQueueItem.STATE_SKIPPED:
         return item
     if item.state == ActivityQueueItem.STATE_COMPLETED:
-        raise QueueConflict('queue_item_completed', 'O item da fila ja foi concluido.')
+        raise QueueConflict(
+            'queue_item_consumed',
+            'O item da fila ja foi consumido.',
+            payload={**queue_context(queue), 'queue_item_id': item.id, 'recoverable': True},
+        )
     if item.state == ActivityQueueItem.STATE_EXPIRED:
-        raise QueueConflict('queue_item_unavailable', 'O item da fila nao esta mais disponivel.')
+        raise QueueConflict(
+            'queue_item_expired',
+            'O item expirou e a fila deve ser atualizada.',
+            payload={**queue_context(queue), 'queue_item_id': item.id, 'recoverable': True},
+        )
 
     item.state = ActivityQueueItem.STATE_SKIPPED
     item.skipped_at = timezone.now()
