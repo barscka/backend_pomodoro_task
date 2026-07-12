@@ -204,8 +204,10 @@ def start_activity(
 
 @transaction.atomic
 def complete_schedule(schedule: Schedule) -> Schedule:
+    # Reverse OneToOne relations also generate LEFT OUTER JOINs, which are not
+    # compatible with PostgreSQL FOR UPDATE on the nullable side.
     schedule = (
-        Schedule.objects.select_related('activity', 'execution_history')
+        Schedule.objects.select_related('activity')
         .select_for_update()
         .get(pk=schedule.pk)
     )
