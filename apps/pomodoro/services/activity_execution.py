@@ -10,8 +10,15 @@ from apps.pomodoro.models import (
     Activity,
     ActivityPreferenceEvent,
     ActivityQueueItem,
+    Category,
+    Group,
     History,
     Schedule,
+)
+from apps.pomodoro.services.activity_queue import (
+    category_started_count,
+    finalize_queue_if_finished,
+    group_remaining_minutes,
 )
 
 
@@ -115,7 +122,7 @@ def start_activity(
 ) -> tuple[Schedule, bool]:
     now = timezone.now()
     queue_item = (
-        ActivityQueueItem.objects.select_related('queue', 'activity')
+        ActivityQueueItem.objects.select_related('queue__group', 'activity__category')
         .select_for_update()
         .get(pk=queue_item.pk)
     )
@@ -126,10 +133,56 @@ def start_activity(
             detail='O item da fila informado nao corresponde a atividade solicitada.',
         )
 
+    if queue_item.queue.scope_key != scope_key:
+        raise ActivityExecutionConflict(
+            code='queue_item_not_found',
+            detail='O item da fila nao pertence ao escopo atual.',
+        )
+
+    if queue_item.queue.state != queue_item.queue.STATE_ACTIVE:
+        raise ActivityExecutionConflict(
+            code='queue_item_unavailable',
+            detail='A fila do item informado nao esta mais ativa.',
+        )
+
+    if queue_item.state == ActivityQueueItem.STATE_STARTED:
+        existing_item_schedule = Schedule.objects.filter(
+            queue_item=queue_item,
+            state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING],
+        ).first()
+        if existing_item_schedule:
+            return existing_item_schedule, False
+        raise ActivityExecutionConflict(
+            code='queue_item_unavailable',
+            detail='O item iniciado nao possui mais uma execucao aberta.',
+        )
+
     if queue_item.state in [ActivityQueueItem.STATE_SKIPPED, ActivityQueueItem.STATE_COMPLETED]:
         raise ActivityExecutionConflict(
             code='queue_item_unavailable',
             detail='O item da fila nao pode mais ser iniciado.',
+        )
+
+    if not activity.active:
+        raise ActivityExecutionConflict(
+            code='activity_inactive',
+            detail='A atividade informada esta inativa.',
+        )
+
+    category = Category.objects.select_for_update().get(pk=activity.category_id)
+    group = Group.objects.select_for_update().get(pk=queue_item.queue.group_id)
+
+    if category_started_count(category) >= category.max_daily_executions:
+        raise ActivityExecutionConflict(
+            code='daily_limit_reached',
+            detail='O limite diario da categoria foi atingido.',
+        )
+
+    remaining_minutes = group_remaining_minutes(group)
+    if remaining_minutes is not None and activity.duration > remaining_minutes:
+        raise ActivityExecutionConflict(
+            code='group_daily_minutes_reached',
+            detail='A atividade nao cabe no saldo diario restante do grupo.',
         )
 
     # PostgreSQL does not allow FOR UPDATE over the nullable side of the
@@ -252,5 +305,6 @@ def complete_schedule(schedule: Schedule) -> Schedule:
             event_type=event_type,
             defaults={'weight_delta': 1},
         )
+        finalize_queue_if_finished(queue)
 
     return schedule

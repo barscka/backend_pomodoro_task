@@ -28,6 +28,7 @@ from .services.activity_queue import (
     present_next_item,
     skip_item,
 )
+from .services.activity_queue_reconciliation import activity_snapshot, reconcile_activity
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +42,13 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
 class ActivityViewSet(viewsets.ModelViewSet):
     permission_classes = [HasAPIKey]
     serializer_class = ActivitySerializer
-    queryset = Activity.objects.filter(active=True).select_related('category', 'category__group')
+    queryset = Activity.objects.all().select_related('category', 'category__group')
 
     def get_queryset(self):
         expire_finished_premiums()
         queryset = super().get_queryset()
+        if self.action in ['list', 'next']:
+            queryset = queryset.filter(active=True)
         category_id = self.request.query_params.get('category_id')
         group = get_requested_group(self.request)
 
@@ -56,6 +59,15 @@ class ActivityViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(category__group=group)
 
         return queryset.order_by('-premium', 'name')
+
+    def perform_create(self, serializer):
+        activity = serializer.save()
+        reconcile_activity(activity)
+
+    def perform_update(self, serializer):
+        previous = activity_snapshot(self.get_object())
+        activity = serializer.save()
+        reconcile_activity(activity, previous=previous)
 
     @action(detail=False, methods=['get'])
     def next(self, request):
@@ -234,7 +246,12 @@ class ActivityQueueItemViewSet(viewsets.GenericViewSet):
             "activity_id": item.activity_id,
             "state": item.state,
             "next_queue_item_id": (
-                item.queue.items.filter(state=ActivityQueueItem.STATE_PENDING)
+                ActivityQueueItem.objects.filter(
+                    queue__scope_key=item.queue.scope_key,
+                    queue__group=item.queue.group,
+                    queue__state='active',
+                    state=ActivityQueueItem.STATE_PENDING,
+                )
                 .order_by('position')
                 .values_list('id', flat=True)
                 .first()

@@ -14,14 +14,18 @@ DEFAULT_CATEGORY_MAX_DAILY_EXECUTIONS = 2
 
 
 def get_default_group_id():
+    group_id = Group.objects.filter(is_default=True).values_list('id', flat=True).first()
+    if group_id:
+        return group_id
     group, _ = Group.objects.get_or_create(
-        is_default=True,
+        name='Todos',
         defaults={
-            'name': 'Todos',
             'description': 'Grupo padrao que mantem o comportamento atual.',
             'color': '#FFFFFF',
         },
     )
+    group.is_default = True
+    group.save(update_fields=['is_default'])
     return group.id
 
 
@@ -30,6 +34,7 @@ class Group(models.Model):
     description = models.TextField(blank=True, null=True)
     color = models.CharField(max_length=7, default='#FFFFFF')
     is_default = models.BooleanField(default=False)
+    max_daily_minutes = models.PositiveIntegerField(default=0)
 
     class Meta:
         verbose_name = 'Group'
@@ -90,10 +95,9 @@ class Category(models.Model):
 
 
 def get_default_category_id():
-    default_group = Group.objects.filter(is_default=True).first()
-    if not default_group:
+    default_group_id = Group.objects.filter(is_default=True).values_list('id', flat=True).first()
+    if not default_group_id:
         default_group_id = get_default_group_id()
-        default_group = Group.objects.get(pk=default_group_id)
 
     category, _ = Category.objects.get_or_create(
         pk=DEFAULT_CATEGORY_ID,
@@ -103,7 +107,7 @@ def get_default_category_id():
             'color': DEFAULT_CATEGORY_COLOR,
             'max_daily_executions': DEFAULT_CATEGORY_MAX_DAILY_EXECUTIONS,
             'executions_today': 0,
-            'group': default_group,
+            'group_id': default_group_id,
         },
     )
     return category.id
@@ -267,6 +271,12 @@ class ActivityQueue(models.Model):
         Group,
         on_delete=models.PROTECT,
         related_name='activity_queues',
+        default=get_default_group_id,
+    )
+    source_queue = models.OneToOneField(
+        'self',
+        on_delete=models.PROTECT,
+        related_name='review_queue',
         null=True,
         blank=True,
     )
@@ -284,10 +294,14 @@ class ActivityQueue(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.UniqueConstraint(
-                fields=['scope_key'],
+                fields=['scope_key', 'group'],
                 condition=Q(state='active'),
-                name='unique_active_queue_per_scope',
+                name='unique_active_queue_per_scope_group',
             ),
+        ]
+        indexes = [
+            models.Index(fields=['scope_key', 'group', 'state'], name='queue_scope_group_state_idx'),
+            models.Index(fields=['source_queue', 'mode'], name='queue_source_mode_idx'),
         ]
 
     def __str__(self):
@@ -334,6 +348,13 @@ class ActivityQueueItem(models.Model):
                 fields=['queue', 'position'],
                 name='unique_queue_item_position',
             ),
+            models.UniqueConstraint(
+                fields=['queue', 'activity'],
+                name='unique_activity_per_queue',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['queue', 'state', 'position'], name='queue_item_state_pos_idx'),
         ]
 
     def __str__(self):

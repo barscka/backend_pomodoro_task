@@ -441,10 +441,19 @@ class ActivityQueueAndExecutionTests(APITestCase):
         )
         self.assertEqual(complete_response.status_code, status.HTTP_200_OK)
 
+        schedule.queue_item.queue.state = schedule.queue_item.queue.STATE_CLOSED
+        schedule.queue_item.queue.closed_at = timezone.now()
+        schedule.queue_item.queue.save(update_fields=['state', 'closed_at'])
+        second_queue = schedule.queue_item.queue.__class__.objects.create(
+            scope_key=schedule.scope_key,
+            group=self.default_group,
+            pool_number=schedule.queue_item.queue.pool_number + 1,
+            pool_size=1,
+        )
         second_queue_item = ActivityQueueItem.objects.create(
-            queue=schedule.queue_item.queue,
+            queue=second_queue,
             activity=activity,
-            position=schedule.queue_item.position + 1,
+            position=1,
             state=ActivityQueueItem.STATE_PRESENTED,
         )
         second_response = self.client.post(

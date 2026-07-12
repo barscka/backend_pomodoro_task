@@ -1113,22 +1113,9 @@ A implementação somente será considerada integralmente concluída quando:
 
 ## 34. Pendências
 
-Permanecem pendentes de comprovação:
+As regras de pool fixa de 30 itens e revisão após cinco pools foram substituídas pela `SPEC-BACK-007`. A fila normal agora contém todas as atividades elegíveis, e cada fila normal com pulos cria sua revisão imediata e isolada por grupo.
 
-* validar o fechamento real de uma pool com 30 itens;
-* validar cinco pools normais consecutivas;
-* validar a sexta pool de revisão;
-* confirmar que somente puladas entram na revisão;
-* confirmar bloqueio de pulo;
-* confirmar reinício do ciclo;
-* validar distribuição estatística dos pesos;
-* validar comportamento quando não existem puladas;
-* validar comportamento quando existem menos de 30 atividades;
-* validar fechamento concorrente;
-* validar o fluxo no PostgreSQL;
-* corrigir o início conforme `SPEC-BACK-006`;
-* homologar o frontend;
-* documentar payloads reais dos serializers.
+Permanece pendente apenas homologação manual ponta a ponta em todos os clientes frontend; os contratos consumidos foram verificados estaticamente e preservados.
 
 ---
 
@@ -1147,6 +1134,9 @@ Permanecem pendentes de comprovação:
 | Ausência de histórico de pulo                         | Histórico de preferência existe.                             |
 | Spec era TO-BE                                        | Atualizada para AS-IS vigente.                               |
 | Ciclo completo das pools era presumido                | Mantido como parcialmente confirmado até testes específicos. |
+| Pool normal limitada a 30 itens                       | Substituída por lista completa pela `SPEC-BACK-007`.           |
+| Revisão após cinco pools                              | Substituída por revisão imediata pela `SPEC-BACK-007`.         |
+| Fila ativa única por escopo                           | Evoluída para única por escopo e grupo.                        |
 
 ---
 
@@ -1191,4 +1181,4 @@ O sistema já possui base estrutural para:
 
 A arquitetura principal da Specification foi implementada.
 
-A conclusão integral depende da validação do ciclo completo de pools, da pool de revisão de atividades puladas, da execução concorrente em PostgreSQL e da correção do início descrita na `SPEC-BACK-006`.
+O ciclo vigente está definido e validado pela `SPEC-BACK-007`. A fila original permanece como base histórica da randomização ponderada, enquanto isolamento por grupo, revisão imediata, reconciliação e limites temporais seguem a Specification posterior.

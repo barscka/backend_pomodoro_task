@@ -13,7 +13,7 @@ from .models import (
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
-        fields = ['id', 'name', 'description', 'color', 'is_default']
+        fields = ['id', 'name', 'description', 'color', 'is_default', 'max_daily_minutes']
 
 class CategorySerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(source='group.name', read_only=True)
@@ -90,6 +90,8 @@ class ActivityQueueItemSerializer(serializers.ModelSerializer):
     pool_size = serializers.IntegerField(source='queue.pool_size', read_only=True)
     consumed_count = serializers.IntegerField(source='queue.consumed_count', read_only=True)
     skip_locked = serializers.BooleanField(source='queue.skip_locked', read_only=True)
+    queue_group_id = serializers.IntegerField(source='queue.group_id', read_only=True)
+    source_queue_id = serializers.IntegerField(source='queue.source_queue_id', read_only=True)
     id = serializers.IntegerField(source='activity.id', read_only=True)
     name = serializers.CharField(source='activity.name', read_only=True)
     description = serializers.CharField(source='activity.description', read_only=True)
@@ -120,6 +122,8 @@ class ActivityQueueItemSerializer(serializers.ModelSerializer):
             'pool_size',
             'consumed_count',
             'skip_locked',
+            'queue_group_id',
+            'source_queue_id',
             'state',
         ]
 
