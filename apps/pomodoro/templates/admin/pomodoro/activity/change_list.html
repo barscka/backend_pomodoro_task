@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+  {% if perms.pomodoro.add_activity and perms.pomodoro.change_activity %}
+    <li>
+      <form method="post" action="{% url 'admin:pomodoro_activity_import_steam' %}">
+        {% csrf_token %}
+        <button
+          type="submit"
+          class="button"
+          onclick="return confirm('Deseja consultar a biblioteca Steam configurada e importar os jogos?');"
+        >Importar jogos da Steam</button>
+      </form>
+    </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

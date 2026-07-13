@@ -70,6 +70,26 @@ poetry run python manage.py test
 
 Os testes não usam o banco de desenvolvimento, homologação ou produção. O arquivo temporário fica em `tests/.tmp/`, ignorado pelo Git.
 
+## Importação de jogos da Steam
+
+Configure no ambiente do servidor:
+
+```env
+STEAM_API_KEY=
+STEAM_ID64=76561198065747727
+STEAM_ACTIVITY_CATEGORY_ID=21
+STEAM_ACTIVITY_DEFAULT_DURATION=60
+```
+
+A chave é obrigatória e não deve ser versionada. Com a categoria configurada previamente
+cadastrada, um administrador com permissões de adicionar e alterar atividades pode acessar
+`Admin > Activities` e usar o botão **Importar jogos da Steam**. A operação é executada por
+`POST`, identifica jogos pelo AppID e não sobrescreve duração, prioridade, estado ou dados de
+execução em sincronizações posteriores.
+
+Detalhes técnicos e operacionais estão em
+[`docs/specs/IMPORTACAO_ATIVIDADES_STEAM_ADMIN.md`](docs/specs/IMPORTACAO_ATIVIDADES_STEAM_ADMIN.md).
+
 ## Migração do SQLite legado
 
 O arquivo `db.sqlite3` original nunca deve receber as migrations de transporte diretamente. Trabalhe com uma cópia explícita:

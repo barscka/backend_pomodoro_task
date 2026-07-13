@@ -130,12 +130,22 @@ class Activity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_executed = models.DateTimeField(null=True, blank=True)
     executions_today = models.IntegerField(default=0)
-    priority = models.IntegerField(default=1) 
+    priority = models.IntegerField(default=1)
+    # Identidade genérica para importações externas, sem acoplar Activity à Steam.
+    external_source = models.CharField(max_length=30, blank=True, default='', db_index=True)
+    external_id = models.CharField(max_length=50, blank=True, default='', db_index=True)
 
     class Meta:
         verbose_name = 'Activity'
         verbose_name_plural = 'Activities'
         ordering = ['-premium', 'name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['external_source', 'external_id'],
+                condition=~Q(external_source='') & ~Q(external_id=''),
+                name='unique_activity_external_identity',
+            ),
+        ]
 
     @property
     def is_premium_active(self):
