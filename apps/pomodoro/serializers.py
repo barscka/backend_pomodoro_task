@@ -1,4 +1,6 @@
 # apps/pomodoro/serializers.py
+from datetime import timezone as datetime_timezone
+
 from rest_framework import serializers
 from .models import (
     Activity,
@@ -205,6 +207,22 @@ class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.Model
     group_consumed_daily_minutes = serializers.SerializerMethodField()
     group_remaining_daily_minutes = serializers.SerializerMethodField()
     execution_id = serializers.IntegerField(source='id', read_only=True)
+    requested_at = serializers.DateTimeField(
+        default_timezone=datetime_timezone.utc,
+        read_only=True,
+    )
+    starts_at = serializers.DateTimeField(
+        default_timezone=datetime_timezone.utc,
+        read_only=True,
+    )
+    expected_end_at = serializers.DateTimeField(
+        default_timezone=datetime_timezone.utc,
+        read_only=True,
+    )
+    completed_at = serializers.DateTimeField(
+        default_timezone=datetime_timezone.utc,
+        read_only=True,
+    )
     server_now = serializers.SerializerMethodField()
     remaining_seconds = serializers.SerializerMethodField()
 

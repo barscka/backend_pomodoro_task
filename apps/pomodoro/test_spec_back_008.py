@@ -1,6 +1,7 @@
 import hashlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 from rest_framework import status
@@ -151,6 +152,41 @@ class QueueContractTests(APITestCase):
         )
         for key, value in expected.items():
             self.assertEqual(completed.data[key], value)
+
+    def test_temporal_contract_keeps_utc_instants_and_local_schedule_time(self):
+        activity = self.create_activity(duration=25)
+        item = self.next()
+        fixed_now = datetime(2026, 7, 14, 0, 55, 27, tzinfo=ZoneInfo('UTC'))
+
+        with patch('django.utils.timezone.now', return_value=fixed_now):
+            started = self.start(item)
+            active = self.client.get('/api/activities/active/')
+            status_response = self.client.get(
+                f"/api/activities/status/{started.data['schedule_id']}/"
+            )
+            retrieve = self.client.get(
+                f"/api/activity-executions/{started.data['schedule_id']}/"
+            )
+
+        schedule = Schedule.objects.get(pk=started.data['schedule_id'])
+
+        self.assertEqual(schedule.scheduled_date.isoformat(), '2026-07-13')
+        self.assertEqual(schedule.start_time.strftime('%H:%M:%S'), '21:55:27')
+        self.assertEqual(schedule.starts_at, fixed_now)
+        self.assertIsNotNone(schedule.starts_at.tzinfo)
+        self.assertEqual(schedule.expected_end_at, fixed_now + timedelta(minutes=25))
+
+        self.assertEqual(started.data['start_time'], '21:55:27')
+        for response in [started, active, status_response, retrieve]:
+            self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_201_CREATED])
+            self.assertTrue(response.data['starts_at'].endswith('Z'))
+            self.assertTrue(response.data['expected_end_at'].endswith('Z'))
+            self.assertIsNotNone(response.data['server_now'].tzinfo)
+            self.assertEqual(response.data['server_now'].utcoffset(), timedelta(0))
+            self.assertEqual(
+                datetime.fromisoformat(response.data['starts_at'].replace('Z', '+00:00')),
+                fixed_now,
+            )
 
     def test_active_execution_conflict_contains_canonical_context(self):
         first = self.create_activity('Primeira')
