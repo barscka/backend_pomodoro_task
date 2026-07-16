@@ -39,6 +39,24 @@ class ActivitySerializer(serializers.ModelSerializer):
                  'created_at', 'last_executed', 'executions_today',
                  'can_execute', 'remaining_executions', 'group_id', 'group_name']
 
+    def validate(self, attrs):
+        premium = attrs.get('premium', self.instance.premium if self.instance else False)
+        premium_from = attrs.get(
+            'premium_from', self.instance.premium_from if self.instance else None
+        )
+        premium_until = attrs.get(
+            'premium_until', self.instance.premium_until if self.instance else None
+        )
+        if premium and (not premium_from or not premium_until):
+            raise serializers.ValidationError(
+                'Atividades premium precisam informar premium_from e premium_until.'
+            )
+        if premium and premium_from > premium_until:
+            raise serializers.ValidationError(
+                'premium_from não pode ser maior que premium_until.'
+            )
+        return attrs
+
     def _get_selected_group(self):
         request = self.context.get('request')
         if not request:

@@ -70,6 +70,29 @@ poetry run python manage.py test
 
 Os testes não usam o banco de desenvolvimento, homologação ou produção. O arquivo temporário fica em `tests/.tmp/`, ignorado pelo Git.
 
+## Reconciliação periódica de filas premium
+
+Filas normais ativas são reconciliadas por um comando idempotente que promove atividades
+premium vigentes, inclusive entre grupos diferentes, sem preemptar o item apresentado ou
+iniciado:
+
+```bash
+poetry run python manage.py reconcile_premium_queues
+poetry run python manage.py reconcile_premium_queues --dry-run
+```
+
+Configure a infraestrutura para executá-lo a cada 15 minutos. Esse também é o atraso
+máximo esperado quando uma vigência futura passa a valer apenas pela passagem do tempo.
+Exemplo de entrada no `crontab`, ajustando o diretório para a instalação real:
+
+```cron
+*/15 * * * * cd /srv/backend_pomodoro_task && poetry run python manage.py reconcile_premium_queues
+```
+
+Cada fila é processada em sua própria transação e em ordem de identificador. Execuções
+sobrepostas são serializadas pelo bloqueio da fila no PostgreSQL; falhas isoladas não
+interrompem as filas seguintes e fazem o comando terminar com status diferente de zero.
+
 ## Importação de jogos da Steam
 
 Configure no ambiente do servidor:

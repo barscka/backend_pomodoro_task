@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -61,13 +62,15 @@ class ActivityViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-premium', 'name')
 
     def perform_create(self, serializer):
-        activity = serializer.save()
-        reconcile_activity(activity)
+        with transaction.atomic():
+            activity = serializer.save()
+            reconcile_activity(activity)
 
     def perform_update(self, serializer):
-        previous = activity_snapshot(self.get_object())
-        activity = serializer.save()
-        reconcile_activity(activity, previous=previous)
+        with transaction.atomic():
+            previous = activity_snapshot(self.get_object())
+            activity = serializer.save()
+            reconcile_activity(activity, previous=previous)
 
     @action(detail=False, methods=['get'])
     def next(self, request):

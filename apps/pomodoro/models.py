@@ -149,13 +149,13 @@ class Activity(models.Model):
 
     @property
     def is_premium_active(self):
-        if not self.premium:
+        if not self.premium or not self.premium_from or not self.premium_until:
             return False
 
         today = timezone.localdate()
-        if self.premium_from and self.premium_from > today:
+        if self.premium_from > today:
             return False
-        if self.premium_until and self.premium_until < today:
+        if self.premium_until < today:
             return False
         return True
 

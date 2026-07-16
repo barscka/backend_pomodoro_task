@@ -146,16 +146,31 @@ def category_started_count(category: Category, *, day=None) -> int:
     return History.objects.filter(activity__category=category, start_time__date=day).count()
 
 
-def activity_is_eligible(activity: Activity, group: Group, *, include_done_today=False) -> bool:
+def activity_is_eligible(
+    activity: Activity,
+    group: Group,
+    *,
+    include_done_today=False,
+    allow_global_premium=False,
+) -> bool:
     if not activity.active or not activity.category_id:
         return False
-    if not group.is_default and activity.category.group_id != group.id:
+    if (
+        not group.is_default
+        and activity.category.group_id != group.id
+        and not (allow_global_premium and activity.is_premium_active)
+    ):
         return False
     if category_started_count(activity.category) >= activity.category.max_daily_executions:
         return False
     if not include_done_today and History.objects.filter(
         activity=activity,
         end_time__date=timezone.localdate(),
+    ).exists():
+        return False
+    if allow_global_premium and activity.is_premium_active and Schedule.objects.filter(
+        activity=activity,
+        state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING],
     ).exists():
         return False
     remaining = group_remaining_minutes(group)
@@ -175,7 +190,14 @@ def eligible_activities(*, selected_group: Group | None, include_done_today: boo
             id__in=History.objects.filter(end_time__date=today).values('activity_id')
         )
     if not group.is_default:
-        queryset = queryset.filter(category__group=group)
+        queryset = queryset.filter(
+            Q(category__group=group)
+            | Q(
+                premium=True,
+                premium_from__lte=today,
+                premium_until__gte=today,
+            )
+        )
     exhausted = Category.objects.annotate(
         started=Count(
             'activities__histories',
@@ -186,7 +208,15 @@ def eligible_activities(*, selected_group: Group | None, include_done_today: boo
     remaining = group_remaining_minutes(group)
     if remaining is not None:
         queryset = queryset.filter(duration__lte=remaining)
-    return queryset
+    queryset = queryset.exclude(
+        Q(
+            premium=True,
+            premium_from__lte=today,
+            premium_until__gte=today,
+        )
+        & Q(schedules__state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING])
+    )
+    return queryset.distinct()
 
 
 def _favorite_weights(scope_key: str, group: Group) -> dict[int, int]:
@@ -311,6 +341,7 @@ def _expire_invalid_items(queue: ActivityQueue):
             item.activity,
             queue.group,
             include_done_today=queue.mode == ActivityQueue.MODE_SKIPPED_REVIEW,
+            allow_global_premium=queue.mode == ActivityQueue.MODE_NORMAL,
         ):
             continue
         item.state = ActivityQueueItem.STATE_EXPIRED
@@ -358,6 +389,12 @@ def get_or_create_active_queue(*, scope_key: str, selected_group: Group | None):
     ).first()
     if queue:
         _expire_invalid_items(queue)
+        if queue.mode == ActivityQueue.MODE_NORMAL:
+            from apps.pomodoro.services.activity_queue_reconciliation import (
+                reconcile_premium_queue,
+            )
+
+            reconcile_premium_queue(queue, rng=random)
         next_queue = finalize_queue_if_finished(queue)
         if next_queue:
             return next_queue
