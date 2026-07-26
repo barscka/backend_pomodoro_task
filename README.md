@@ -70,11 +70,12 @@ poetry run python manage.py test
 
 Os testes não usam o banco de desenvolvimento, homologação ou produção. O arquivo temporário fica em `tests/.tmp/`, ignorado pelo Git.
 
-## Reconciliação periódica de filas premium
+## Reconciliação periódica das filas
 
-Filas normais ativas são reconciliadas por um comando idempotente que promove atividades
-premium vigentes, inclusive entre grupos diferentes, sem preemptar o item apresentado ou
-iniciado:
+Filas ativas são reconciliadas por um comando idempotente que preserva o isolamento por
+grupo, saneia itens estrangeiros legados e promove atividades premium vigentes somente
+dentro das filas elegíveis. A fila `Todos` permanece agregadora, e execuções iniciadas não
+são interrompidas:
 
 ```bash
 poetry run python manage.py reconcile_premium_queues
@@ -223,6 +224,8 @@ Construa a imagem e execute migrations como uma etapa única antes de iniciar os
 docker compose -f compose.yml build --pull
 docker compose -f compose.yml run --rm backend python manage.py migrate --noinput
 docker compose -f compose.yml run --rm backend python manage.py collectstatic --noinput
+docker compose -f compose.yml run --rm backend python manage.py reconcile_premium_queues --dry-run
+docker compose -f compose.yml run --rm backend python manage.py reconcile_premium_queues
 docker compose -f compose.yml up -d
 docker compose -f compose.yml ps
 ```

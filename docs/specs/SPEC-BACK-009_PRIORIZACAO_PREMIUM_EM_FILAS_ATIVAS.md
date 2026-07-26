@@ -2,8 +2,9 @@
 
 ## 1. Status
 
-Proposta revisada conforme decisão funcional: prioridade premium global com reconciliação
-periódica.
+Implementada, com a regra de roteamento premium global posteriormente substituída pela
+`SPEC-BACK-010`. A reconciliação periódica e a prioridade premium permanecem vigentes,
+mas somente dentro das filas elegíveis pelo grupo.
 
 ## 2. Contexto
 

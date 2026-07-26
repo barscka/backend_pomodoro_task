@@ -2,7 +2,7 @@
 
 ## 1. Status
 
-Proposta para ajuste.
+Implementada em 2026-07-26.
 
 Esta spec corrige a regra de roteamento global de atividades premium definida na
 `SPEC-BACK-009`. A prioridade premium continua válida, mas passa a atuar somente dentro

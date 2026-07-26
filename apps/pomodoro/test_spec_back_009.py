@@ -70,7 +70,7 @@ class PremiumQueueReconciliationTests(TestCase):
             .values_list('activity__name', flat=True)
         )
 
-    def test_promotes_and_inserts_global_premiums_without_moving_current_item(self):
+    def test_promotes_and_inserts_group_premiums_without_moving_current_item(self):
         current = self.item(
             self.activity('Apresentada'),
             1,
@@ -84,8 +84,12 @@ class PremiumQueueReconciliationTests(TestCase):
         self.item(normal_one, 3)
         self.item(new_premium, 4)
         self.item(normal_two, 5)
-        missing_global = self.activity(
-            'Premium global',
+        missing_local = self.activity(
+            'Premium local ausente',
+            premium=True,
+        )
+        foreign_premium = self.activity(
+            'Premium externo',
             premium=True,
             category=self.other_category,
         )
@@ -100,13 +104,14 @@ class PremiumQueueReconciliationTests(TestCase):
         names = self.pending_names()
         self.assertEqual(current.position, 1)
         self.assertEqual(current.state, ActivityQueueItem.STATE_PRESENTED)
-        self.assertEqual(set(names[:2]), {'Premium nova', 'Premium global'})
+        self.assertEqual(set(names[:2]), {'Premium nova', 'Premium local ausente'})
         self.assertEqual(names[2:], ['Premium anterior', 'Normal 1', 'Normal 2'])
         self.assertEqual(result.inserted, 1)
         self.assertEqual(result.promoted, 1)
         self.assertEqual(self.queue.pool_size, 6)
         self.assertEqual(self.queue.consumed_count, 0)
-        self.assertEqual(self.queue.items.filter(activity=missing_global).count(), 1)
+        self.assertEqual(self.queue.items.filter(activity=missing_local).count(), 1)
+        self.assertFalse(self.queue.items.filter(activity=foreign_premium).exists())
         self.assertEqual(
             self.queue.items.count(),
             self.queue.items.values('position').distinct().count(),
@@ -156,7 +161,7 @@ class PremiumQueueReconciliationTests(TestCase):
 
     def test_dry_run_reports_changes_without_persisting_them(self):
         normal = self.activity('Normal')
-        premium = self.activity('Premium ausente', premium=True, category=self.other_category)
+        premium = self.activity('Premium ausente', premium=True)
         self.item(normal, 1)
         self.queue.pool_size = 1
         self.queue.save(update_fields=['pool_size'])
@@ -169,7 +174,7 @@ class PremiumQueueReconciliationTests(TestCase):
         self.queue.refresh_from_db()
         self.assertEqual(self.queue.pool_size, 1)
 
-    def test_review_and_closed_queues_are_not_reconciled(self):
+    def test_review_is_checked_without_premium_insertion_and_closed_queue_is_ignored(self):
         premium = self.activity('Premium', premium=True)
         review = ActivityQueue.objects.create(
             scope_key='review',
@@ -184,7 +189,7 @@ class PremiumQueueReconciliationTests(TestCase):
 
         summary = reconcile_all_premium_queues(rng=random.Random(1))
 
-        self.assertEqual(summary.queues_checked, 1)
+        self.assertEqual(summary.queues_checked, 2)
         self.assertFalse(review.items.filter(activity=premium).exists())
         self.assertFalse(closed.items.filter(activity=premium).exists())
 
@@ -211,10 +216,10 @@ class PremiumQueueReconciliationTests(TestCase):
         self.assertEqual(premium.state, ActivityQueueItem.STATE_PRESENTED)
         self.assertEqual(normal.state, ActivityQueueItem.STATE_PENDING)
 
-    def test_new_group_queue_includes_global_premium_before_local_normal(self):
+    def test_new_group_queue_excludes_foreign_premium(self):
         local = self.activity('Normal local')
-        global_premium = self.activity(
-            'Premium global',
+        foreign_premium = self.activity(
+            'Premium externo',
             premium=True,
             category=self.other_category,
         )
@@ -222,12 +227,12 @@ class PremiumQueueReconciliationTests(TestCase):
 
         result = present_next_item(scope_key='nova-fila', selected_group=self.group)
 
-        self.assertEqual(result.item.activity_id, global_premium.id)
-        self.assertTrue(result.item.queue.items.filter(activity=local).exists())
+        self.assertEqual(result.item.activity_id, local.id)
+        self.assertFalse(result.item.queue.items.filter(activity=foreign_premium).exists())
 
     def test_management_command_emits_structured_dry_run_summary(self):
         self.item(self.activity('Normal'), 1)
-        self.activity('Premium', premium=True, category=self.other_category)
+        self.activity('Premium', premium=True)
         output = io.StringIO()
 
         call_command('reconcile_premium_queues', '--dry-run', stdout=output)
@@ -236,6 +241,7 @@ class PremiumQueueReconciliationTests(TestCase):
         self.assertTrue(payload['dry_run'])
         self.assertEqual(payload['queues_checked'], 1)
         self.assertEqual(payload['items_inserted'], 1)
+        self.assertEqual(payload['foreign_items_expired'], 0)
 
 
 class PremiumQueueApiTests(APITestCase):

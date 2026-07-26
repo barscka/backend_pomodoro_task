@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from apps.pomodoro.models import Activity, ActivityQueue, ActivityQueueItem, History, Schedule
 from apps.pomodoro.services.activity_queue import (
+    activity_belongs_to_queue,
     activity_is_eligible,
     category_started_count,
     group_remaining_minutes,
@@ -30,11 +31,16 @@ class ReconciliationResult:
     inserted: int = 0
     promoted: int = 0
     demoted: int = 0
+    foreign_items_expired: int = 0
     positions_written: int = 0
 
     @property
     def changed(self) -> bool:
-        return bool(self.inserted or self.positions_written)
+        return bool(
+            self.inserted
+            or self.foreign_items_expired
+            or self.positions_written
+        )
 
 
 @dataclass
@@ -43,6 +49,7 @@ class ReconciliationSummary:
     items_inserted: int = 0
     items_promoted: int = 0
     items_demoted: int = 0
+    foreign_items_expired: int = 0
     errors: int = 0
     failed_queue_ids: list[int] = field(default_factory=list)
 
@@ -50,6 +57,7 @@ class ReconciliationSummary:
         self.items_inserted += result.inserted
         self.items_promoted += result.promoted
         self.items_demoted += result.demoted
+        self.foreign_items_expired += result.foreign_items_expired
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -57,6 +65,7 @@ class ReconciliationSummary:
             'items_inserted': self.items_inserted,
             'items_promoted': self.items_promoted,
             'items_demoted': self.items_demoted,
+            'foreign_items_expired': self.foreign_items_expired,
             'errors': self.errors,
             'failed_queue_ids': self.failed_queue_ids,
         }
@@ -77,6 +86,8 @@ def activity_snapshot(activity: Activity) -> dict[str, object]:
 
 def _premium_is_operationally_eligible(activity: Activity, queue: ActivityQueue) -> bool:
     if not activity.is_premium_active or not activity.active or not activity.category_id:
+        return False
+    if not activity_belongs_to_queue(activity, queue.group):
         return False
     if category_started_count(activity.category) >= activity.category.max_daily_executions:
         return False
@@ -102,11 +113,43 @@ def _eligible_premiums(queue: ActivityQueue) -> list[Activity]:
         premium_until__gte=timezone.localdate(),
         category__isnull=False,
     ).order_by('id')
+    if not queue.group.is_default:
+        candidates = candidates.filter(category__group=queue.group)
     return [
         activity
         for activity in candidates
         if _premium_is_operationally_eligible(activity, queue)
     ]
+
+
+def _expire_foreign_items(
+    queue: ActivityQueue,
+    items: list[ActivityQueueItem],
+) -> int:
+    if queue.group.is_default:
+        return 0
+
+    protected_item_ids = set(
+        Schedule.objects.filter(
+            queue_item__queue=queue,
+            state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING],
+        ).values_list('queue_item_id', flat=True)
+    )
+    foreign = [
+        item
+        for item in items
+        if item.state in [
+            ActivityQueueItem.STATE_PENDING,
+            ActivityQueueItem.STATE_PRESENTED,
+        ]
+        and item.id not in protected_item_ids
+        and not activity_belongs_to_queue(item.activity, queue.group)
+    ]
+    for item in foreign:
+        item.state = ActivityQueueItem.STATE_EXPIRED
+    if foreign:
+        ActivityQueueItem.objects.bulk_update(foreign, ['state'])
+    return len(foreign)
 
 
 def _rewrite_pending_region(
@@ -157,7 +200,7 @@ def reconcile_premium_queue(
         raise RuntimeError('reconcile_premium_queue exige uma transacao ativa.')
 
     queue = ActivityQueue.objects.select_for_update().select_related('group').get(pk=queue.pk)
-    if queue.state != ActivityQueue.STATE_ACTIVE or queue.mode != ActivityQueue.MODE_NORMAL:
+    if queue.state != ActivityQueue.STATE_ACTIVE:
         return ReconciliationResult(queue_id=queue.id)
 
     items = list(
@@ -165,9 +208,19 @@ def reconcile_premium_queue(
         .select_related('activity__category__group')
         .order_by('position', 'id')
     )
+    foreign_items_expired = _expire_foreign_items(queue, items)
+    if queue.mode != ActivityQueue.MODE_NORMAL:
+        return ReconciliationResult(
+            queue_id=queue.id,
+            foreign_items_expired=foreign_items_expired,
+        )
+
     pending = [item for item in items if item.state == ActivityQueueItem.STATE_PENDING]
     if not pending:
-        return ReconciliationResult(queue_id=queue.id)
+        return ReconciliationResult(
+            queue_id=queue.id,
+            foreign_items_expired=foreign_items_expired,
+        )
 
     eligible_premiums = _eligible_premiums(queue)
     eligible_ids = {activity.id for activity in eligible_premiums}
@@ -200,7 +253,10 @@ def reconcile_premium_queue(
     current_ids = [item.activity_id for item in pending]
 
     if not missing and desired_ids == current_ids:
-        return ReconciliationResult(queue_id=queue.id)
+        return ReconciliationResult(
+            queue_id=queue.id,
+            foreign_items_expired=foreign_items_expired,
+        )
 
     last_active_premium_index = max(
         (index for index, item in enumerate(pending) if item.activity_id in eligible_ids),
@@ -227,6 +283,7 @@ def reconcile_premium_queue(
         inserted=len(missing),
         promoted=len(new_existing),
         demoted=demoted,
+        foreign_items_expired=foreign_items_expired,
         positions_written=positions_written,
     )
 
@@ -240,7 +297,6 @@ def reconcile_all_premium_queues(
     queue_ids = list(
         ActivityQueue.objects.filter(
             state=ActivityQueue.STATE_ACTIVE,
-            mode=ActivityQueue.MODE_NORMAL,
         ).order_by('id').values_list('id', flat=True)
     )
 
@@ -254,7 +310,7 @@ def reconcile_all_premium_queues(
                     transaction.set_rollback(True)
         except Exception:
             logger.exception(
-                'Falha ao reconciliar prioridade premium',
+                'Falha ao reconciliar isolamento e prioridade da fila',
                 extra={'queue_id': queue_id},
             )
             summary.errors += 1
@@ -303,7 +359,7 @@ def reconcile_activity(activity: Activity, *, previous: dict[str, object] | None
     changed = False
     for queue in queues:
         item = queue.items.filter(activity=activity).first()
-        eligible = activity_is_eligible(activity, queue.group, allow_global_premium=True)
+        eligible = activity_is_eligible(activity, queue.group)
         if item:
             if not eligible and item.state in [
                 ActivityQueueItem.STATE_PENDING,

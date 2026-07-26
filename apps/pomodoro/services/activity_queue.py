@@ -78,6 +78,16 @@ def normalize_group(selected_group: Group | None) -> Group:
     return selected_group or default_group()
 
 
+def activity_belongs_to_queue(activity: Activity, queue_group: Group) -> bool:
+    return bool(
+        activity.category_id
+        and (
+            queue_group.is_default
+            or activity.category.group_id == queue_group.id
+        )
+    )
+
+
 def get_requested_group(request):
     group_id = request.query_params.get('group_id') or request.data.get('group_id')
     if group_id:
@@ -151,15 +161,10 @@ def activity_is_eligible(
     group: Group,
     *,
     include_done_today=False,
-    allow_global_premium=False,
 ) -> bool:
     if not activity.active or not activity.category_id:
         return False
-    if (
-        not group.is_default
-        and activity.category.group_id != group.id
-        and not (allow_global_premium and activity.is_premium_active)
-    ):
+    if not activity_belongs_to_queue(activity, group):
         return False
     if category_started_count(activity.category) >= activity.category.max_daily_executions:
         return False
@@ -168,7 +173,7 @@ def activity_is_eligible(
         end_time__date=timezone.localdate(),
     ).exists():
         return False
-    if allow_global_premium and activity.is_premium_active and Schedule.objects.filter(
+    if activity.is_premium_active and Schedule.objects.filter(
         activity=activity,
         state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING],
     ).exists():
@@ -190,14 +195,7 @@ def eligible_activities(*, selected_group: Group | None, include_done_today: boo
             id__in=History.objects.filter(end_time__date=today).values('activity_id')
         )
     if not group.is_default:
-        queryset = queryset.filter(
-            Q(category__group=group)
-            | Q(
-                premium=True,
-                premium_from__lte=today,
-                premium_until__gte=today,
-            )
-        )
+        queryset = queryset.filter(category__group=group)
     exhausted = Category.objects.annotate(
         started=Count(
             'activities__histories',
@@ -341,7 +339,6 @@ def _expire_invalid_items(queue: ActivityQueue):
             item.activity,
             queue.group,
             include_done_today=queue.mode == ActivityQueue.MODE_SKIPPED_REVIEW,
-            allow_global_premium=queue.mode == ActivityQueue.MODE_NORMAL,
         ):
             continue
         item.state = ActivityQueueItem.STATE_EXPIRED

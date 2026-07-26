@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Reconcilia a prioridade premium em todas as filas normais ativas.'
+    help = (
+        'Reconcilia o isolamento por grupo e a prioridade premium '
+        'em todas as filas ativas.'
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -26,7 +29,10 @@ class Command(BaseCommand):
         payload = {'dry_run': options['dry_run'], **summary.as_dict()}
         self.stdout.write(json.dumps(payload, sort_keys=True))
         if summary.errors:
-            logger.error('Falha na reconciliacao de filas premium', extra=payload)
+            logger.error(
+                'Falha na reconciliacao de isolamento e prioridade das filas',
+                extra=payload,
+            )
             raise CommandError(
                 f'Reconciliacao concluida com erro em {summary.errors} fila(s).'
             )

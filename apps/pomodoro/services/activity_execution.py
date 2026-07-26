@@ -16,6 +16,7 @@ from apps.pomodoro.models import (
     Schedule,
 )
 from apps.pomodoro.services.activity_queue import (
+    activity_belongs_to_queue,
     category_started_count,
     finalize_queue_if_finished,
     group_remaining_minutes,
@@ -204,6 +205,17 @@ def start_activity(
 
     category = Category.objects.select_for_update().get(pk=activity.category_id)
     group = Group.objects.select_for_update().get(pk=queue_item.queue.group_id)
+
+    if not activity_belongs_to_queue(activity, group):
+        raise ActivityExecutionConflict(
+            code='activity_no_longer_eligible',
+            detail='A atividade nao pertence mais ao grupo desta fila.',
+            payload={
+                **queue_context(queue_item.queue),
+                'queue_item_id': queue_item.id,
+                'recoverable': True,
+            },
+        )
 
     started_daily_executions = category_started_count(category)
     if started_daily_executions >= category.max_daily_executions:
