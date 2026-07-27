@@ -37,6 +37,21 @@ class QueuePresentationResult:
     remaining_daily_minutes: int | None
 
 
+@dataclass(frozen=True)
+class QueueRecreationResult:
+    queue: ActivityQueue
+    recreated_from_queue_id: int
+    requeued_skipped_count: int
+    skipped_not_requeued: list[dict[str, object]]
+
+
+@dataclass(frozen=True)
+class QueueActivityListResult:
+    queue: ActivityQueue | None
+    available_count: int
+    activities: list[dict[str, object]]
+
+
 def group_daily_metrics(group: Group) -> dict[str, int | None]:
     consumed = group_reserved_minutes(group)
     remaining = None
@@ -229,12 +244,12 @@ def _favorite_weights(scope_key: str, group: Group) -> dict[int, int]:
     return {activity_id: 4 if count else 1 for activity_id, count in favorites.items()}
 
 
-def _weighted_order(activities, scope_key: str, group: Group):
+def _weighted_order(activities, scope_key: str, group: Group, *, rng=random):
     weights = _favorite_weights(scope_key, group)
     ranked = []
     for activity in activities:
         weight = max(weights.get(activity.id, 1), 1)
-        score = random.random() ** (1.0 / weight)
+        score = rng.random() ** (1.0 / weight)
         ranked.append((not activity.is_premium_active, -score, activity.id, activity))
     ranked.sort(key=lambda row: row[:3])
     return [row[3] for row in ranked]
@@ -374,6 +389,244 @@ def _create_normal_queue(scope_key: str, group: Group) -> ActivityQueue | None:
         for position, activity in enumerate(activities, start=1)
     ])
     return queue
+
+
+def _ineligibility_reason(activity: Activity, group: Group) -> str | None:
+    if not activity.active:
+        return 'inactive'
+    if not activity.category_id:
+        return 'category_unavailable'
+    if not activity_belongs_to_queue(activity, group):
+        return 'group_mismatch'
+    if category_started_count(activity.category) >= activity.category.max_daily_executions:
+        return 'category_daily_limit_reached'
+    if History.objects.filter(
+        activity=activity,
+        end_time__date=timezone.localdate(),
+    ).exists():
+        return 'already_completed_today'
+    if activity.is_premium_active and Schedule.objects.filter(
+        activity=activity,
+        state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING],
+    ).exists():
+        return 'active_execution_conflict'
+    remaining = group_remaining_minutes(group)
+    if remaining is not None and activity.duration > remaining:
+        return 'group_daily_minutes_reached'
+    return None
+
+
+@transaction.atomic
+def recreate_active_queue(
+    *,
+    scope_key: str,
+    selected_group: Group | None,
+    expected_queue_id: int,
+    rng=random,
+) -> QueueRecreationResult:
+    group = normalize_group(selected_group)
+    group = Group.objects.select_for_update().get(pk=group.pk)
+    queue = (
+        ActivityQueue.objects.select_related('group')
+        .select_for_update()
+        .filter(scope_key=scope_key, group=group, state=ActivityQueue.STATE_ACTIVE)
+        .first()
+    )
+    if queue is None:
+        raise QueueConflict(
+            'active_queue_not_found',
+            'Nao existe fila ativa para este grupo.',
+            payload={'queue_group_id': group.id, 'recoverable': True},
+        )
+    if queue.id != expected_queue_id:
+        raise QueueConflict(
+            'queue_changed',
+            'A fila ativa mudou desde a ultima leitura.',
+            payload={
+                'queue_id': queue.id,
+                'queue_group_id': group.id,
+                'recoverable': True,
+            },
+        )
+
+    open_schedule = (
+        Schedule.objects.select_for_update()
+        .filter(
+            scope_key=scope_key,
+            state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING],
+        )
+        .order_by('id')
+        .first()
+    )
+    if open_schedule:
+        raise QueueConflict(
+            'active_execution_running',
+            'Existe uma atividade em execucao neste escopo.',
+            payload={
+                'queue_id': queue.id,
+                'queue_group_id': group.id,
+                'recoverable': True,
+            },
+        )
+    if queue.mode != ActivityQueue.MODE_NORMAL:
+        raise QueueConflict(
+            'queue_recreation_locked',
+            'A revisao obrigatoria de atividades puladas nao pode ser recriada.',
+            payload={
+                'queue_id': queue.id,
+                'queue_group_id': group.id,
+                'recoverable': True,
+            },
+        )
+
+    locked_items = list(
+        queue.items.select_related('activity__category__group')
+        .select_for_update()
+        .order_by('position')
+    )
+    skipped_activities = {
+        item.activity_id: item.activity
+        for item in locked_items
+        if item.state == ActivityQueueItem.STATE_SKIPPED
+    }
+    skipped_not_requeued = []
+    eligible_skipped_ids = set()
+    for activity_id, activity in skipped_activities.items():
+        reason = _ineligibility_reason(activity, group)
+        if reason:
+            skipped_not_requeued.append({
+                'activity_id': activity_id,
+                'reason': reason,
+            })
+        else:
+            eligible_skipped_ids.add(activity_id)
+
+    candidates_by_id = {
+        activity.id: activity
+        for activity in eligible_activities(selected_group=group)
+    }
+    for activity_id in eligible_skipped_ids:
+        candidates_by_id.setdefault(activity_id, skipped_activities[activity_id])
+    ordered_activities = _weighted_order(
+        list(candidates_by_id.values()),
+        scope_key,
+        group,
+        rng=rng,
+    )
+    if not ordered_activities:
+        raise QueueConflict(
+            'no_activity_available',
+            'Nenhuma atividade pode compor a nova fila.',
+            payload={
+                'queue_id': queue.id,
+                'queue_group_id': group.id,
+                'recoverable': True,
+            },
+        )
+
+    queue.items.filter(
+        state__in=[
+            ActivityQueueItem.STATE_PENDING,
+            ActivityQueueItem.STATE_PRESENTED,
+        ]
+    ).update(state=ActivityQueueItem.STATE_EXPIRED)
+    queue.state = ActivityQueue.STATE_CANCELLED
+    queue.closed_at = timezone.now()
+    queue.save(update_fields=['state', 'closed_at'])
+
+    new_queue = ActivityQueue.objects.create(
+        group=group,
+        scope_key=scope_key,
+        mode=ActivityQueue.MODE_NORMAL,
+        pool_number=_next_pool_number(scope_key, group),
+        pool_size=len(ordered_activities),
+        skip_locked=False,
+        recreated_from=queue,
+    )
+    ActivityQueueItem.objects.bulk_create([
+        ActivityQueueItem(queue=new_queue, activity=activity, position=position)
+        for position, activity in enumerate(ordered_activities, start=1)
+    ])
+    return QueueRecreationResult(
+        queue=new_queue,
+        recreated_from_queue_id=queue.id,
+        requeued_skipped_count=len(eligible_skipped_ids),
+        skipped_not_requeued=skipped_not_requeued,
+    )
+
+
+def list_active_queue_activities(
+    *,
+    scope_key: str,
+    selected_group: Group | None,
+    limit: int = 30,
+) -> QueueActivityListResult:
+    group = normalize_group(selected_group)
+    queue = (
+        ActivityQueue.objects.select_related('group')
+        .filter(scope_key=scope_key, group=group, state=ActivityQueue.STATE_ACTIVE)
+        .first()
+    )
+    if queue is None:
+        return QueueActivityListResult(queue=None, available_count=0, activities=[])
+
+    operational_states = [
+        ActivityQueueItem.STATE_PRESENTED,
+        ActivityQueueItem.STATE_STARTED,
+        ActivityQueueItem.STATE_PENDING,
+    ]
+    operational_items = queue.items.filter(
+        state__in=operational_states,
+    ).select_related('activity__category').order_by('position')
+    available_count = operational_items.count()
+    items = list(operational_items[:limit])
+    activity_ids = {item.activity_id for item in items}
+
+    execution_statistics = {
+        row['activity_id']: row
+        for row in (
+            History.objects.filter(
+                activity_id__in=activity_ids,
+                end_time__isnull=False,
+                schedule__state=Schedule.STATE_COMPLETED,
+            )
+            .values('activity_id')
+            .annotate(execution_count=Count('id'), last_execution_at=Max('end_time'))
+        )
+    }
+    skip_statistics = {
+        row['activity_id']: row['skip_count']
+        for row in (
+            ActivityPreferenceEvent.objects.filter(
+                activity_id__in=activity_ids,
+                event_type=ActivityPreferenceEvent.EVENT_SKIPPED,
+            )
+            .values('activity_id')
+            .annotate(skip_count=Count('id'))
+        )
+    }
+    activities = []
+    for item in items:
+        execution = execution_statistics.get(item.activity_id, {})
+        activities.append({
+            'queue_item_id': item.id,
+            'position': item.position,
+            'state': item.state,
+            'activity_id': item.activity_id,
+            'name': item.activity.name,
+            'category': {
+                'id': item.activity.category_id,
+                'name': item.activity.category.name,
+            },
+            'execution_count': execution.get('execution_count', 0),
+            'last_execution_at': execution.get('last_execution_at'),
+            'skip_count': skip_statistics.get(item.activity_id, 0),
+        })
+    return QueueActivityListResult(
+        queue=queue,
+        available_count=available_count,
+        activities=activities,
+    )
 
 
 @transaction.atomic

@@ -290,6 +290,13 @@ class ActivityQueue(models.Model):
         null=True,
         blank=True,
     )
+    recreated_from = models.OneToOneField(
+        'self',
+        on_delete=models.PROTECT,
+        related_name='recreated_queue',
+        null=True,
+        blank=True,
+    )
     scope_key = models.CharField(max_length=64, db_index=True)
     state = models.CharField(max_length=16, choices=STATE_CHOICES, default=STATE_ACTIVE)
     mode = models.CharField(max_length=24, choices=MODE_CHOICES, default=MODE_NORMAL)

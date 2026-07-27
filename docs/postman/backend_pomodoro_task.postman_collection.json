@@ -639,6 +639,99 @@
               }
             }
           ]
+        },
+        {
+          "name": "GET /activity-queue/activities/?group_id={{group_id}}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/activity-queue/activities/?group_id={{group_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activity-queue",
+                "activities",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "group_id",
+                  "value": "{{group_id}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('queue preview returns read contract', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.returned_count).to.be.at.most(30);",
+                  "  pm.expect(data.statistics_scope).to.eql('all_time');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /activity-queue/recreate/",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"group_id\": {{group_id}},\n  \"expected_queue_id\": {{queue_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/activity-queue/recreate/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "activity-queue",
+                "recreate",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('queue recreation returns contract status', function () {",
+                  "  pm.expect([201, 400, 404, 409, 500]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.environment.set('queue_id', String(data.queue_id));",
+                  "}"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

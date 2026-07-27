@@ -281,3 +281,60 @@ class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.Model
             return 0
         delta = obj.expected_end_at - timezone.now()
         return max(int(delta.total_seconds()), 0)
+
+
+class QueueRecreationRequestSerializer(serializers.Serializer):
+    group_id = serializers.IntegerField(required=False, min_value=1)
+    expected_queue_id = serializers.IntegerField(min_value=1)
+
+
+class QueueRecreationResponseSerializer(serializers.Serializer):
+    queue_id = serializers.IntegerField()
+    recreated_from_queue_id = serializers.IntegerField()
+    queue_group_id = serializers.IntegerField()
+    queue_group_name = serializers.CharField()
+    queue_mode = serializers.CharField()
+    pool_number = serializers.IntegerField()
+    pool_size = serializers.IntegerField()
+    skip_locked = serializers.BooleanField()
+    requeued_skipped_count = serializers.IntegerField()
+    skipped_not_requeued = serializers.ListField(child=serializers.DictField())
+
+
+class QueueActivityCategorySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
+class QueueActivitySummarySerializer(serializers.Serializer):
+    queue_item_id = serializers.IntegerField()
+    position = serializers.IntegerField()
+    state = serializers.CharField()
+    activity_id = serializers.IntegerField()
+    name = serializers.CharField()
+    category = QueueActivityCategorySerializer()
+    execution_count = serializers.IntegerField()
+    last_execution_at = serializers.DateTimeField(
+        allow_null=True,
+        default_timezone=datetime_timezone.utc,
+    )
+    skip_count = serializers.IntegerField()
+
+
+class ActiveQueueSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    group_id = serializers.IntegerField()
+    group_name = serializers.CharField()
+    mode = serializers.CharField()
+    pool_number = serializers.IntegerField()
+    pool_size = serializers.IntegerField()
+    skip_locked = serializers.BooleanField()
+
+
+class QueueActivityListResponseSerializer(serializers.Serializer):
+    queue = ActiveQueueSummarySerializer(allow_null=True)
+    returned_count = serializers.IntegerField()
+    available_count = serializers.IntegerField()
+    has_more = serializers.BooleanField()
+    statistics_scope = serializers.CharField()
+    activities = QueueActivitySummarySerializer(many=True)

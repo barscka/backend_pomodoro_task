@@ -12,6 +12,28 @@ Backend Django/DRF para gerenciamento de atividades, categorias, grupos, agendam
 
 Atividades sem categoria explicita passam a usar a categoria padrao `Todos` com `id = 1`.
 
+### Recriação e prévia da fila
+
+`POST /api/activity-queue/recreate/` substitui explicitamente a fila normal ativa do
+grupo, preservando a fila anterior e seu histórico. O cliente deve enviar a fila que
+conhece para evitar recriações duplicadas:
+
+```json
+{
+  "group_id": 3,
+  "expected_queue_id": 10
+}
+```
+
+A resposta `201 Created` informa a nova `queue_id`, o vínculo
+`recreated_from_queue_id`, o tamanho total da fila e as atividades puladas que deixaram
+de ser elegíveis. Filas de revisão e escopos com execução aberta retornam conflito.
+
+`GET /api/activity-queue/activities/?group_id=3` consulta, sem criar ou avançar a fila,
+os primeiros 30 itens operacionais ordenados por posição. A resposta inclui
+`available_count`, `has_more` e estatísticas históricas de conclusões e pulos por
+atividade. O limite de 30 afeta somente a prévia, nunca o tamanho persistido da fila.
+
 ## Requisitos
 
 - Python 3.12;

@@ -8,6 +8,9 @@ from rest_framework_api_key.permissions import HasAPIKey
 
 from .models import Activity, ActivityQueueItem, Group, History, Schedule
 from .serializers import (
+    QueueActivityListResponseSerializer,
+    QueueRecreationRequestSerializer,
+    QueueRecreationResponseSerializer,
     ActivityExecutionSerializer,
     ActivityQueueItemSerializer,
     ActivitySerializer,
@@ -26,7 +29,9 @@ from .services.activity_queue import (
     QueueConflict,
     expire_finished_premiums,
     get_requested_group,
+    list_active_queue_activities,
     present_next_item,
+    recreate_active_queue,
     skip_item,
 )
 from .services.activity_queue_reconciliation import activity_snapshot, reconcile_activity
@@ -288,6 +293,135 @@ class ActivityQueueItemViewSet(viewsets.GenericViewSet):
             ),
         }
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class ActivityQueueViewSet(viewsets.GenericViewSet):
+    permission_classes = [HasAPIKey]
+    PREVIEW_LIMIT = 30
+
+    @staticmethod
+    def _group(group_id):
+        if group_id is None:
+            return None
+        return Group.objects.filter(pk=group_id).first()
+
+    @action(detail=False, methods=['post'])
+    def recreate(self, request):
+        if request.data.get('expected_queue_id') in [None, '']:
+            return Response(
+                {
+                    'code': 'expected_queue_id_required',
+                    'detail': 'O campo expected_queue_id e obrigatorio.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = QueueRecreationRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    'code': 'invalid_request',
+                    'detail': 'Os dados informados sao invalidos.',
+                    'errors': serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        group_id = serializer.validated_data.get('group_id')
+        group = self._group(group_id)
+        if group_id is not None and group is None:
+            return Response(
+                {'code': 'group_not_found', 'detail': 'Grupo nao encontrado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            result = recreate_active_queue(
+                scope_key=build_scope_key(request),
+                selected_group=group,
+                expected_queue_id=serializer.validated_data['expected_queue_id'],
+            )
+        except QueueConflict as exc:
+            response_status = (
+                status.HTTP_404_NOT_FOUND
+                if exc.code == 'active_queue_not_found'
+                else status.HTTP_409_CONFLICT
+            )
+            return Response(
+                {'code': exc.code, 'detail': exc.detail, **exc.payload},
+                status=response_status,
+            )
+        except Exception:
+            logger.exception(
+                'Unexpected failure while recreating activity queue',
+                extra={'group_id': group_id},
+            )
+            return Response(
+                {
+                    'code': 'queue_recreation_failed',
+                    'detail': 'Nao foi possivel recriar a fila.',
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        queue = result.queue
+        payload = {
+            'queue_id': queue.id,
+            'recreated_from_queue_id': result.recreated_from_queue_id,
+            'queue_group_id': queue.group_id,
+            'queue_group_name': queue.group.name,
+            'queue_mode': queue.mode,
+            'pool_number': queue.pool_number,
+            'pool_size': queue.pool_size,
+            'skip_locked': queue.skip_locked,
+            'requeued_skipped_count': result.requeued_skipped_count,
+            'skipped_not_requeued': result.skipped_not_requeued,
+        }
+        return Response(
+            QueueRecreationResponseSerializer(payload).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=['get'])
+    def activities(self, request):
+        raw_group_id = request.query_params.get('group_id')
+        try:
+            group_id = int(raw_group_id) if raw_group_id not in [None, ''] else None
+        except (TypeError, ValueError):
+            return Response(
+                {
+                    'code': 'invalid_request',
+                    'detail': 'O group_id informado e invalido.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        group = self._group(group_id)
+        if group_id is not None and group is None:
+            return Response(
+                {'code': 'group_not_found', 'detail': 'Grupo nao encontrado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        result = list_active_queue_activities(
+            scope_key=build_scope_key(request),
+            selected_group=group,
+            limit=self.PREVIEW_LIMIT,
+        )
+        queue = result.queue
+        payload = {
+            'queue': None if queue is None else {
+                'id': queue.id,
+                'group_id': queue.group_id,
+                'group_name': queue.group.name,
+                'mode': queue.mode,
+                'pool_number': queue.pool_number,
+                'pool_size': queue.pool_size,
+                'skip_locked': queue.skip_locked,
+            },
+            'returned_count': len(result.activities),
+            'available_count': result.available_count,
+            'has_more': result.available_count > len(result.activities),
+            'statistics_scope': 'all_time',
+            'activities': result.activities,
+        }
+        return Response(QueueActivityListResponseSerializer(payload).data)
 
 
 class ActivityExecutionViewSet(viewsets.GenericViewSet):
