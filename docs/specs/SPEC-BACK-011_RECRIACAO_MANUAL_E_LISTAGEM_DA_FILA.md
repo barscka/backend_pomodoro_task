@@ -2,7 +2,10 @@
 
 ## 1. Status
 
-Planejada em 2026-07-27.
+Implementada em 2026-07-27.
+
+Revisada em 2026-07-31 para planejar a reserva de múltiplas ocorrências de atividades
+premium na fila recriada. Essa revisão ainda depende de implementação.
 
 Esta Specification descreve somente a mudança do backend. A inclusão ou renomeação do
 botão no frontend deve ser planejada no repositório Flutter depois que o contrato HTTP
@@ -21,6 +24,8 @@ A funcionalidade deve:
   elegíveis;
 - continuar registrando cada novo pulo para relatórios;
 - manter a randomização ponderada e a prioridade premium vigentes;
+- reservar, entre as primeiras posições, tantas ocorrências executáveis de cada atividade
+  premium quanto o saldo diário de sua categoria permitir;
 - disponibilizar uma rota de leitura com no máximo 30 itens, sem limitar a fila total a
   30 atividades.
 
@@ -33,6 +38,8 @@ O backend Django/DRF já possui:
 - ordem aleatória persistida em `ActivityQueueItem.position`;
 - fila normal contendo todas as atividades elegíveis, inclusive quando existem mais de
   30;
+- uma ocorrência por atividade em cada fila, garantida atualmente pela constraint
+  `unique_activity_per_queue`;
 - retorno estável do item `presented` nas chamadas repetidas de `GET /activities/next/`;
 - pulo persistido em `ActivityQueueItem.state`, `skipped_at` e
   `ActivityPreferenceEvent(event_type=skipped)`;
@@ -59,7 +66,9 @@ deve usá-lo como fonte de verdade; a última execução deve ser calculada a pa
 - listagem dos primeiros 30 itens operacionais da fila ativa;
 - agregação de execuções concluídas, última execução e pulos;
 - testes de serviço, API, concorrência e isolamento por grupo;
-- migration aditiva necessária à rastreabilidade.
+- migration aditiva necessária à rastreabilidade;
+- migration de estado para permitir múltiplos `ActivityQueueItem` da mesma atividade na
+  mesma fila, preservando a unicidade de posição.
 
 ### 4.2 Fora do escopo
 
@@ -67,6 +76,7 @@ deve usá-lo como fonte de verdade; a última execução deve ser calculada a pa
 - apagar ou compactar filas antigas;
 - transformar a fila completa em uma fila fixa de 30 itens;
 - mudar os pesos atuais da randomização;
+- repetir atividades normais na mesma fila;
 - criar um novo modelo específico de relatório;
 - alterar o endpoint vigente de próxima atividade;
 - permitir pulo dentro de uma fila `skipped_review`;
@@ -133,8 +143,9 @@ state = skipped
 
 na própria fila ativa.
 
-Cada atividade pulada deve participar uma única vez do conjunto candidato da nova fila,
-desde que ainda obedeça às regras de elegibilidade no instante da recriação:
+Cada atividade pulada deve participar uma única vez do conjunto de identidades candidatas
+da nova fila, desde que ainda obedeça às regras de elegibilidade no instante da
+recriação:
 
 - atividade ativa;
 - categoria válida;
@@ -164,7 +175,12 @@ active_execution_conflict
 Os itens pulados elegíveis entram no mesmo embaralhamento das demais atividades. Eles não
 devem ser fixados no início nem no fim da fila e não recebem peso novo nesta spec.
 
-### 5.5 Conjunto e ordem da nova fila
+Se a identidade pulada for um premium vigente, ela não ganha uma ocorrência adicional
+por ter sido pulada. Sua quantidade na fila nova é recalculada somente pela regra de
+reserva premium da seção 5.5. `requeued_skipped_count` continua contando atividades
+puladas distintas, e não ocorrências reservadas.
+
+### 5.5 Conjunto, multiplicidade premium e ordem da nova fila
 
 A nova fila normal deve conter todas as atividades elegíveis do grupo, não apenas 30.
 
@@ -176,14 +192,57 @@ UNION
 atividades puladas elegíveis da fila substituída
 ```
 
-A união deve ser deduplicada por `activity_id`.
+A união deve ser deduplicada por `activity_id` antes da expansão das ocorrências premium.
+Atividades normais continuam produzindo exatamente um `ActivityQueueItem`.
+
+Para cada categoria que possua premium vigente e elegível, o serviço deve calcular:
+
+```text
+saldo_diario_categoria =
+    MAX(category.max_daily_executions - category_started_count(category, hoje), 0)
+```
+
+Esse saldo representa o número total de ocorrências premium executáveis que podem ser
+reservadas para a categoria naquela recriação. A fila não deve usar
+`Category.executions_today` nem `Activity.executions_today` para esse cálculo.
+
+Quando houver somente um premium elegível na categoria, ele deve aparecer exatamente
+`saldo_diario_categoria` vezes na fila nova. Exemplo:
+
+```text
+atividade = Avioes no Warthunder
+category.max_daily_executions = 2
+category_started_count = 0
+ocorrencias reservadas na fila recriada = 2
+```
+
+Se já houver uma execução iniciada hoje nessa categoria, o mesmo exemplo reserva somente
+uma ocorrência. Se o limite já tiver sido atingido, nenhuma ocorrência é criada.
+
+`max_daily_executions` é um limite compartilhado pela categoria, não um limite individual
+por atividade. Se houver mais de um premium elegível na mesma categoria, o serviço deve
+distribuir no máximo `saldo_diario_categoria` ocorrências entre eles, em rodadas com ordem
+pseudoaleatória injetável. Quando o saldo permitir, todos recebem uma ocorrência antes de
+qualquer um receber a segunda. A soma das ocorrências premium dessa categoria nunca pode
+ultrapassar seu saldo diário.
+
+Cada ocorrência reservada deve ser um `ActivityQueueItem` independente, com `id`,
+`position`, estado, execução e eventual evento de pulo próprios. A conclusão de uma
+ocorrência premium no dia não deve expirar as demais ocorrências do mesmo premium enquanto
+a categoria ainda possuir saldo. A regra de impedir uma segunda execução da mesma
+atividade no dia permanece válida para atividades normais.
 
 A ordem deve continuar usando a regra de `_weighted_order()`:
 
-- premium vigente antes de atividade normal;
+- todas as ocorrências de premiums vigentes antes de atividade normal, garantindo que as
+  ocorrências reservadas ocupem vagas da prévia de até 30 itens;
 - ponderação histórica já existente;
-- randomização dentro dos conjuntos;
-- posição persistida uma única vez.
+- randomização dentro dos conjuntos e entre premiums que compartilham categoria;
+- posição única persistida para cada ocorrência.
+
+Se as ocorrências premium somarem mais de 30, a prévia retorna as 30 primeiras e as demais
+continuam armazenadas na fila. `pool_size` e `available_count` contam ocorrências, não
+atividades distintas.
 
 O serviço de randomização deve aceitar uma fonte pseudoaleatória injetável nos testes.
 
@@ -226,10 +285,14 @@ A recriação:
 - cria novos `ActivityQueueItem` para as ocorrências da fila nova;
 - permite que um novo pulo da mesma atividade gere uma nova ocorrência histórica.
 
+Duas ocorrências premium puladas geram dois eventos somente se o usuário efetivamente
+pular ambas. Recriar a fila não replica eventos antigos nem transforma a quantidade de
+ocorrências reservadas em `skip_count`.
+
 Assim, `skip_count` representa ações de pulo, e não a quantidade de atividades distintas
 que já foram puladas.
 
-## 6. Alteração de modelo
+## 6. Alterações de modelo
 
 Adicionar a `ActivityQueue` um vínculo opcional e auditável:
 
@@ -252,6 +315,19 @@ Regras:
 - `recreated_from` não deve reutilizar nem mudar a semântica de `source_queue`.
 
 A migration deve ser aditiva, aceitar `NULL` e não atualizar ou apagar filas existentes.
+
+Para permitir as ocorrências premium independentes, remover a constraint:
+
+```python
+models.UniqueConstraint(
+    fields=['queue', 'activity'],
+    name='unique_activity_per_queue',
+)
+```
+
+A constraint `unique_queue_item_position` deve permanecer. A migration não cria itens
+retroativos nem duplica dados de filas existentes; apenas permite que novas filas
+recriadas persistam mais de uma ocorrência da mesma atividade.
 
 ## 7. Endpoint de recriação
 
@@ -297,6 +373,7 @@ recrie uma fila que o cliente ainda não conhece.
 ```
 
 `pool_size` informa o tamanho total real da fila e pode ser maior que 30.
+Ocorrências repetidas de um premium são contadas individualmente em `pool_size`.
 
 ### 7.3 Erros funcionais
 
@@ -351,6 +428,11 @@ presented + started + pending
 ordenados por `position`.
 
 Itens `completed`, `skipped` e `expired` não ocupam as 30 posições da prévia.
+
+Uma atividade premium pode aparecer mais de uma vez em `activities`. Cada entrada deve
+ter `queue_item_id` e `position` distintos, embora compartilhe `activity_id` e os mesmos
+indicadores históricos. `returned_count` e `available_count` contam entradas da fila, não
+atividades distintas.
 
 ### 8.2 Resposta
 
@@ -460,6 +542,19 @@ list_active_queue_activities(
 ) -> QueueActivityListResult
 ```
 
+O serviço de recriação deve separar explicitamente:
+
+```text
+identidades candidatas
+→ cálculo do saldo compartilhado por categoria
+→ expansão em ocorrências premium
+→ ordenação das ocorrências
+→ persistência de um item por ocorrência
+```
+
+A expansão não deve reutilizar um dicionário indexado apenas por `activity_id` depois que
+as ocorrências forem materializadas, pois isso eliminaria silenciosamente as repetições.
+
 Views devem permanecer finas e somente:
 
 - validar entrada;
@@ -490,7 +585,9 @@ normalizar e validar grupo
 → bloquear/verificar execução aberta
 → rejeitar skipped_review
 → capturar pulos e eventos existentes
-→ calcular e validar candidatos
+→ calcular e validar identidades candidatas
+→ bloquear categorias premium e calcular seus saldos diários
+→ expandir e ordenar ocorrências premium sem exceder o saldo da categoria
 → expirar itens não consumidos
 → cancelar fila anterior
 → criar fila normal com recreated_from
@@ -519,7 +616,16 @@ A recriação manual substitui a regra da `SPEC-BACK-007` somente neste ponto:
   natural.
 
 A prioridade e o isolamento por grupo das `SPEC-BACK-009` e `SPEC-BACK-010` permanecem
-vigentes.
+vigentes. A reconciliação de uma fila ativa deve reconhecer múltiplas ocorrências premium,
+preservar as ainda cobertas pelo saldo da categoria e expirar somente o excesso ou as que
+se tornarem inelegíveis. Ela não pode reduzir automaticamente um premium a uma única
+ocorrência.
+
+O início e a conclusão continuam vinculados ao `queue_item_id`. Depois de concluir uma
+ocorrência premium, o próximo item da mesma atividade pode ser apresentado e iniciado
+enquanto o limite diário compartilhado da categoria não tiver sido atingido. A validação
+transacional no início da execução permanece como autoridade final contra concorrência e
+mudanças ocorridas depois da recriação.
 
 ## 12. Arquivos previstos
 
@@ -527,7 +633,10 @@ vigentes.
 | --- | --- |
 | `apps/pomodoro/models.py` | Adicionar `ActivityQueue.recreated_from`. |
 | `apps/pomodoro/migrations/0016_*.py` | Migration aditiva do vínculo. |
-| `apps/pomodoro/services/activity_queue.py` | Recriação, expiração controlada e listagem. |
+| `apps/pomodoro/migrations/0017_*.py` | Remover `unique_activity_per_queue`, sem alterar dados existentes. |
+| `apps/pomodoro/services/activity_queue.py` | Recriação, multiplicidade premium, elegibilidade, expiração controlada e listagem. |
+| `apps/pomodoro/services/activity_queue_reconciliation.py` | Preservar e reconciliar a quantidade válida de ocorrências premium. |
+| `apps/pomodoro/services/activity_execution.py` | Manter o limite transacional e permitir a próxima ocorrência premium enquanto houver saldo. |
 | `apps/pomodoro/serializers.py` | Serializers dos novos contratos. |
 | `apps/pomodoro/views.py` | ViewSet fino para recriar e listar. |
 | `apps/pomodoro/urls.py` | Registrar as duas rotas. |
@@ -553,7 +662,9 @@ implementação.
 ### 13.2 Atividades puladas
 
 - pulo anterior e evento `skipped` permanecem inalterados;
-- atividade pulada elegível aparece uma vez na fila nova;
+- atividade normal pulada e elegível aparece uma vez na fila nova;
+- atividade premium pulada e elegível respeita a multiplicidade calculada para sua
+  categoria, sem ganhar vaga extra por causa do pulo;
 - dois pulos da mesma atividade em filas diferentes contam duas vezes;
 - recriar não cria evento duplicado;
 - atividade pulada inelegível é omitida e reportada em `skipped_not_requeued`;
@@ -574,16 +685,27 @@ implementação.
 ### 13.4 Randomização e isolamento
 
 - premium vigente permanece antes das atividades normais;
+- premium único com máximo diário 2 e nenhuma execução no dia aparece duas vezes;
+- premium com máximo diário 2 e uma execução já iniciada no dia aparece uma vez;
+- premium não aparece quando o saldo diário da categoria é zero;
+- duas ocorrências do mesmo premium têm `queue_item_id` e posição distintos;
+- concluir a primeira ocorrência não expira a segunda enquanto houver saldo;
+- atividades normais continuam aparecendo no máximo uma vez;
+- premiums da mesma categoria compartilham o saldo e não o multiplicam por atividade;
+- a distribuição entre premiums da mesma categoria é determinística com `rng` injetado;
 - atividades normais continuam randomizadas;
 - fila específica contém somente atividades do grupo;
 - `Todos` continua agregador;
 - mais de 30 atividades continuam armazenadas na fila;
-- nenhuma atividade aparece duas vezes na mesma fila.
+- somente premiums vigentes podem aparecer mais de uma vez na mesma fila.
 
 ### 13.5 Listagem
 
 - retorna no máximo 30 itens;
 - retorna os 30 primeiros itens operacionais por posição;
+- conta ocorrências premium repetidas individualmente no limite de 30;
+- serializa ocorrências repetidas com `queue_item_id` distintos e indicadores históricos
+  consistentes por `activity_id`;
 - não apresenta nem avança item;
 - não cria fila quando não existe uma ativa;
 - informa `has_more` e `available_count`;
@@ -628,7 +750,15 @@ configurado pelo projeto. Nunca usar o banco de desenvolvimento ou produção na
 - [ ] A recriação afeta somente o escopo e grupo solicitados.
 - [ ] A fila anterior permanece auditável e é marcada como cancelada.
 - [ ] Pulos e eventos anteriores não são apagados nem duplicados.
-- [ ] Atividades puladas ainda elegíveis entram exatamente uma vez na nova fila.
+- [ ] Atividades puladas normais ainda elegíveis entram exatamente uma vez na nova fila.
+- [ ] Um premium vigente reserva ocorrências conforme o saldo de
+  `Category.max_daily_executions` no momento da recriação.
+- [ ] Um premium com limite 2 e nenhuma execução iniciada no dia ocupa duas posições
+  distintas, inclusive dentro da prévia de 30.
+- [ ] Premiums da mesma categoria não reservam, em conjunto, mais ocorrências do que o
+  saldo diário compartilhado.
+- [ ] Concluir uma ocorrência premium não impede a próxima enquanto houver saldo diário.
+- [ ] Atividades normais não são duplicadas.
 - [ ] A nova ordem continua aleatória, ponderada e compatível com premium.
 - [ ] Revisões obrigatórias não podem ser descartadas por recriação.
 - [ ] Execuções abertas não são interrompidas.
@@ -648,6 +778,10 @@ configurado pelo projeto. Nunca usar o banco de desenvolvimento ou produção na
 | Cancelar execução em andamento | Rejeitar qualquer execução aberta no escopo. |
 | Retornar estatísticas multiplicadas | Agregações independentes ou contagens distintas. |
 | Confundir prévia de 30 com tamanho da fila | Expor `pool_size`, `available_count` e `has_more`. |
+| Multiplicar o limite quando vários premiums compartilham categoria | Calcular um único saldo por categoria e distribuí-lo entre seus premiums. |
+| Deduplicar ocorrências premium por engano | Separar identidade candidata de ocorrência e testar IDs/posições distintos. |
+| Expirar a segunda ocorrência após concluir a primeira | Exceção explícita de elegibilidade para premium enquanto houver saldo da categoria. |
+| Mudança da categoria após a recriação deixar ocorrências excedentes | Reconciliar/expirar o excesso e validar novamente sob lock ao iniciar. |
 | Campo legado de última execução estar obsoleto | Derivar `last_execution_at` de `History.end_time`. |
 | Divergência entre SQLite e PostgreSQL | Teste concorrente e migration também em PostgreSQL. |
 
@@ -671,3 +805,4 @@ Essa etapa não faz parte desta spec de backend.
 | Data | Versão | Alteração |
 | --- | --- | --- |
 | 2026-07-27 | 1.0 | Planejamento inicial após análise do backend e do contrato consumido pelo frontend. |
+| 2026-07-31 | 1.1 | Planeja múltiplas ocorrências premium na recriação conforme o saldo diário compartilhado da categoria. |
