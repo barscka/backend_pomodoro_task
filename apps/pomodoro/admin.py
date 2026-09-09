@@ -6,6 +6,33 @@ from django.shortcuts import redirect
 from django.urls import path, reverse
 
 from .models import Activity, ActivityQueue, ActivityQueueItem, Category, Group, History, Schedule
+from .models import GoalCompletion, WeeklyGoal, WeeklyGoalRevision
+
+
+class ReadOnlyGoalAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(WeeklyGoal)
+class WeeklyGoalAdmin(ReadOnlyGoalAdmin):
+    list_display = ('id', 'metric', 'group', 'category', 'version')
+
+
+@admin.register(WeeklyGoalRevision)
+class WeeklyGoalRevisionAdmin(ReadOnlyGoalAdmin):
+    list_display = ('id', 'goal', 'effective_week', 'target', 'active')
+
+
+@admin.register(GoalCompletion)
+class GoalCompletionAdmin(ReadOnlyGoalAdmin):
+    list_display = ('source_schedule_id', 'completed_at', 'duration_minutes', 'context_source')
 from .services.activity_queue_reconciliation import activity_snapshot, reconcile_activity
 from .services.steam_import import SteamImportError, import_steam_games
 

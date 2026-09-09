@@ -3,7 +3,8 @@
 ## Status e ordem de trabalho
 
 Registrado em 2026-09-09. As três ideias foram selecionadas pelo usuário para trabalho
-futuro. Nenhuma delas foi implementada por este documento.
+futuro. O backend da etapa 1 foi implementado em 2026-09-09; implantação e integração
+do frontend permanecem pendentes. As etapas 2 e 3 ainda não foram implementadas.
 
 Ordem acordada:
 
@@ -31,8 +32,8 @@ Principais pontos de integração:
 ## 1. Metas semanais com acompanhamento de progresso
 
 Planejamento do backend: [SPEC-BACK-012 — Metas semanais](SPEC-BACK-012_METAS_SEMANAIS.md),
-elaborado em 2026-09-09 e ainda não implementado. Essa especificação detalha as
-decisões propostas para o MVP e substitui as questões em aberto abaixo onde houver
+elaborado e implementado em 2026-09-09. Essa especificação detalha as
+decisões do backend do MVP e substitui as questões em aberto abaixo onde houver
 uma decisão explícita.
 
 ### Objetivo e experiência
@@ -175,9 +176,8 @@ Estimativa qualitativa: complexidade média.
 
 ## Retomada do trabalho
 
-Começar pela etapa 1: revisar o frontend e fechar as decisões das metas semanais,
-então criar a especificação de implementação. A aprovação das ideias não representa
-aprovação automática de todos os detalhes propostos neste documento.
+Continuar a etapa 1 pela implantação do backend e integração do frontend à
+SPEC-BACK-012. As etapas seguintes permanecem propostas para trabalho posterior.
 
 Para cada etapa, preservar os contratos existentes e validar regras de negócio e
 API em banco de teste isolado, conforme os padrões pessoais Python API e de fluxo

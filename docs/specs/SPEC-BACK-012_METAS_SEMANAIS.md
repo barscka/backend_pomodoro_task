@@ -2,10 +2,11 @@
 
 ## 1. Status e objetivo
 
-Planejamento elaborado em 2026-09-09. Não implementado.
+Planejamento elaborado e backend implementado em 2026-09-09.
 Detalha a primeira etapa do [roadmap](ROADMAP_EVOLUCAO_APP.md).
-As decisões abaixo formam a proposta de implementação; não indicam comportamento
-já disponível. O escopo desta task é planejar e documentar somente o backend.
+As regras abaixo descrevem o backend implementado. Migração e carga histórica no
+ambiente de destino continuam como etapas de implantação; não foram executadas no
+banco real nesta task. O frontend permanece fora desta entrega.
 
 Permitir cadastrar metas recorrentes semanais de minutos ou sessões concluídas,
 por grupo ou categoria, e consultar progresso sem interferir nas filas e nos
@@ -304,6 +305,29 @@ confirmar primeiro é a identidade por chave no cliente; a API não promete isol
 por pessoa. Os demais limites assumidos são minutos inteiros, cobertura legada com
 classificação aproximada e atualização após reconciliação explícita.
 
-Próxima task: implementar os blocos acima, começando por modelos e captura de fatos.
+Próxima task: aplicar a migration e conferir a carga histórica no ambiente de destino,
+então integrar o frontend aos novos contratos.
 As funcionalidades 2 e 3 do roadmap continuam fora do escopo. Pausas futuras deverão
 alimentar duration_minutes com o tempo de atividade efetivo, sem contar descanso.
+
+## 11. Registro da implementação
+
+- Migration aditiva `0017_weekly_goals`, snapshots no início e fatos de conclusão
+  gravados atomicamente. Estados cancelled/expired retornam conflito na conclusão.
+- Cadastro, leitura, edição versionada, desativação, reativação e progresso paginado.
+- Views novas isoladas em `weekly_goal_views.py`, mantendo o módulo anterior estável.
+- Serviços e repository dedicados; os GETs de metas não reconciliam nem gravam dados.
+- `backfill_goal_completions` possui dry-run, lotes entre 1 e 10000 e relatório JSON.
+  Relata também History de atividade divergente como `activity_mismatch`.
+- Admins novos somente leitura; README e coleção Postman atualizados.
+- Assumido o escopo existente por Authorization conforme o plano. Login por pessoa
+  e transferência de metas entre chaves não foram introduzidos.
+
+Validação: suíte padrão com 142 testes em SQLite isolado (139 passaram e os 3 de locks
+foram pulados); os 22 testes de metas passaram em PostgreSQL 16
+descartável, incluindo edições concorrentes, conclusões concorrentes e corrida entre
+carga histórica e conclusão. Os testes de lock usam `has_select_for_update` e são
+pulados automaticamente em SQLite. O guard SQLite da suíte padrão foi preservado;
+PostgreSQL foi validado com settings temporários exclusivos para o container sem volumes.
+`manage.py check`, `makemigrations --check --dry-run` e `git diff --check` passaram.
+O container foi encerrado e removido após a validação.

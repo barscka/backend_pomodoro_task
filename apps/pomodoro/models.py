@@ -234,6 +234,8 @@ class Schedule(models.Model):
         blank=True,
     )
     scope_key = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    goal_category_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True)
+    goal_group_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True)
     state = models.CharField(
         max_length=16,
         choices=STATE_CHOICES,
@@ -451,3 +453,74 @@ class History(models.Model):
 
     def __str__(self):
         return f"History {self.id} of {self.activity.name}"
+
+
+class WeeklyGoal(models.Model):
+    METRIC_CHOICES = [('minutes', 'Minutos'), ('sessions', 'Sessões')]
+
+    scope_key = models.CharField(max_length=64)
+    metric = models.CharField(max_length=8, choices=METRIC_CHOICES)
+    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.PROTECT)
+    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.PROTECT)
+    is_all_groups = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['id']
+        constraints = [
+            models.CheckConstraint(
+                condition=(Q(group__isnull=False, category__isnull=True)
+                           | Q(group__isnull=True, category__isnull=False)),
+                name='goal_exactly_one_destination',
+            ),
+            models.CheckConstraint(
+                condition=Q(is_all_groups=False) | Q(group__isnull=False),
+                name='goal_all_requires_group',
+            ),
+            models.CheckConstraint(condition=Q(metric__in=['minutes', 'sessions']), name='goal_valid_metric'),
+            models.CheckConstraint(condition=Q(version__gte=1), name='goal_positive_version'),
+            models.UniqueConstraint(fields=['scope_key', 'metric', 'group'],
+                                    condition=Q(group__isnull=False), name='goal_unique_group_metric'),
+            models.UniqueConstraint(fields=['scope_key', 'metric', 'category'],
+                                    condition=Q(category__isnull=False), name='goal_unique_category_metric'),
+        ]
+
+
+class WeeklyGoalRevision(models.Model):
+    goal = models.ForeignKey(WeeklyGoal, on_delete=models.CASCADE, related_name='revisions')
+    effective_week = models.DateField()
+    target = models.PositiveIntegerField()
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['effective_week', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['goal', 'effective_week'], name='goal_unique_revision_week'),
+            models.CheckConstraint(condition=Q(target__gte=1), name='goal_positive_target'),
+            models.CheckConstraint(condition=Q(effective_week__week_day=2), name='goal_revision_monday'),
+        ]
+
+
+class GoalCompletion(models.Model):
+    # Deliberately not FKs: these facts survive deletion of their source records.
+    source_schedule_id = models.PositiveBigIntegerField(unique=True)
+    scope_key = models.CharField(max_length=64)
+    category_id_snapshot = models.PositiveBigIntegerField()
+    group_id_snapshot = models.PositiveBigIntegerField()
+    completed_at = models.DateTimeField()
+    duration_minutes = models.PositiveIntegerField()
+    context_source = models.CharField(max_length=16, choices=[
+        ('execution_start', 'Início da execução'), ('legacy_current', 'Contexto atual do legado'),
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['scope_key', 'completed_at'], name='goal_fact_scope_time_idx'),
+            models.Index(fields=['scope_key', 'group_id_snapshot', 'completed_at'], name='goal_fact_group_time_idx'),
+            models.Index(fields=['scope_key', 'category_id_snapshot', 'completed_at'], name='goal_fact_category_time_idx'),
+        ]

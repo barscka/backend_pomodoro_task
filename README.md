@@ -34,7 +34,70 @@ os primeiros 30 itens operacionais ordenados por posição. A resposta inclui
 `available_count`, `has_more` e estatísticas históricas de conclusões e pulos por
 atividade. O limite de 30 afeta somente a prévia, nunca o tamanho persistido da fila.
 
-## Requisitos
+## Metas semanais
+
+O backend oferece metas recorrentes de `minutes` ou `sessions`, por grupo ou categoria,
+isoladas pelo mesmo Authorization usado nas execuções. Uma chave compartilhada implica
+metas compartilhadas; rotação de chave não migra metas automaticamente.
+
+| Método | Rota | Uso |
+| --- | --- | --- |
+| POST | `/api/weekly-goals/` | Criar meta |
+| GET | `/api/weekly-goals/` | Listar; filtro opcional `active=true` ou `false` |
+| GET | `/api/weekly-goals/<id>/` | Consultar configuração e versão |
+| PATCH | `/api/weekly-goals/<id>/` | Editar alvo ou ativação com `expected_version` |
+| GET | `/api/weekly-goals/progress/` | Progresso da semana atual ou `week_start=YYYY-MM-DD` |
+
+Cadastro de exemplo:
+
+```json
+{"metric":"minutes","group_id":3,"target":240}
+```
+
+Para categoria, substituir `group_id` por `category_id`. A resposta inclui `id` e
+`version`. Exemplo de edição:
+
+```json
+{"target":300,"expected_version":1}
+```
+
+Versão obsoleta ou cadastro duplicado retorna 409. Desativar com
+`{"active":false,"expected_version":2}`; não há DELETE. Métrica e destino são imutáveis.
+Edições valem para a semana atual e seguintes, preservando revisões de semanas anteriores.
+Listagens usam `page` e `page_size` (20 por padrão, máximo 100).
+
+Semanas começam segunda-feira em `America/Sao_Paulo`. O progresso considera somente
+conclusões persistidas, pela data de conclusão, e retorna alvo, realizado, restante,
+percentual decimal e atingimento. Consultas não alteram execuções. O campo
+`pending_reconciliation_count` informa sessões vencidas ainda abertas no período e
+escopo; o cliente pode reconciliá-las pela rota de execução existente antes de atualizar
+o progresso. Minutos são inteiros; conclusão antecipada com zero minutos conta uma sessão.
+
+O grupo Todos agrega todos os grupos de origem. Sessões mantêm sua classificação do
+início e duração concluída mesmo após alterações ou exclusão das atividades.
+
+### Aplicação da migração e carga histórica
+
+A migration `0017_weekly_goals` é aditiva. No ambiente de destino, aplicar a migração
+antes de iniciar a versão nova. Após iniciar a captura de conclusões, carregar o legado
+antes de liberar o uso de metas aos clientes:
+
+```bash
+poetry run python manage.py migrate --noinput
+poetry run python manage.py backfill_goal_completions --dry-run
+poetry run python manage.py backfill_goal_completions --batch-size 500
+```
+
+Esses são comandos de implantação; não fazem parte da suíte de testes. O dry-run
+somente relata quantidades. A carga é idempotente e não altera History ou contadores.
+Registros sem escopo, abertos ou inconsistentes são excluídos com motivos no relatório.
+Quando não há snapshot do início, a classificação atual é marcada como `legacy_current`.
+Edições manuais posteriores do histórico não reescrevem fatos já carregados.
+
+Contrato completo e limites: [SPEC-BACK-012](docs/specs/SPEC-BACK-012_METAS_SEMANAIS.md).
+A coleção Postman inclui a pasta `Weekly Goals` e propaga `goal_id`/`goal_version`.
+
+## Requisitos de ambiente
 
 - Python 3.12;
 - Poetry;

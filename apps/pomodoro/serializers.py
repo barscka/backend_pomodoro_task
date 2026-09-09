@@ -331,6 +331,50 @@ class ActiveQueueSummarySerializer(serializers.Serializer):
     skip_locked = serializers.BooleanField()
 
 
+class StrictGoalSerializer(serializers.Serializer):
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown = set(data) - set(self.fields)
+            if unknown:
+                raise serializers.ValidationError({key: 'Campo não permitido.' for key in sorted(unknown)})
+        return super().to_internal_value(data)
+
+
+class WeeklyGoalCreateSerializer(StrictGoalSerializer):
+    metric = serializers.ChoiceField(choices=['minutes', 'sessions'])
+    group_id = serializers.PrimaryKeyRelatedField(source='group', queryset=Group.objects.all(), required=False)
+    category_id = serializers.PrimaryKeyRelatedField(source='category', queryset=Category.objects.all(), required=False)
+    target = serializers.IntegerField(min_value=1, max_value=2147483647)
+
+    def validate(self, attrs):
+        if ('group' in attrs) == ('category' in attrs):
+            raise serializers.ValidationError('Informe exatamente um destino: group_id ou category_id.')
+        return attrs
+
+
+class WeeklyGoalUpdateSerializer(StrictGoalSerializer):
+    target = serializers.IntegerField(min_value=1, max_value=2147483647, required=False)
+    active = serializers.BooleanField(required=False)
+    expected_version = serializers.IntegerField(min_value=1, max_value=2147483647)
+
+    def validate(self, attrs):
+        if not {'target', 'active'} & attrs.keys():
+            raise serializers.ValidationError('Informe target ou active para editar a meta.')
+        return attrs
+
+
+class WeeklyGoalSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    metric = serializers.CharField()
+    group_id = serializers.IntegerField(allow_null=True)
+    category_id = serializers.IntegerField(allow_null=True)
+    is_all_groups = serializers.BooleanField()
+    target = serializers.IntegerField()
+    active = serializers.BooleanField()
+    effective_week = serializers.DateField()
+    version = serializers.IntegerField()
+
+
 class QueueActivityListResponseSerializer(serializers.Serializer):
     queue = ActiveQueueSummarySerializer(allow_null=True)
     returned_count = serializers.IntegerField()

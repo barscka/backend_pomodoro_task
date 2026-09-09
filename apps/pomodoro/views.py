@@ -191,7 +191,10 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        schedule = complete_schedule(schedule)
+        try:
+            schedule = complete_schedule(schedule)
+        except ActivityExecutionConflict as exc:
+            return Response({'code': exc.code, 'detail': exc.detail}, status=status.HTTP_409_CONFLICT)
         schedule = Schedule.objects.select_related(
             'activity__category__group',
             'queue_item__queue__group',

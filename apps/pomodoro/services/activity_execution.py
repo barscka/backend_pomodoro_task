@@ -22,6 +22,7 @@ from apps.pomodoro.services.activity_queue import (
     group_remaining_minutes,
     queue_context,
 )
+from apps.pomodoro.services.goal_completions import record_completion
 
 
 class ActivityExecutionConflict(Exception):
@@ -294,6 +295,8 @@ def start_activity(
                 completed=False,
                 queue_item=queue_item,
                 scope_key=scope_key,
+                goal_category_id_snapshot=category.pk,
+                goal_group_id_snapshot=category.group_id,
                 state=Schedule.STATE_RUNNING,
                 version=1,
                 requested_at=now,
@@ -325,8 +328,20 @@ def complete_schedule(schedule: Schedule) -> Schedule:
         .select_for_update()
         .get(pk=schedule.pk)
     )
+    if schedule.state in [Schedule.STATE_CANCELLED, Schedule.STATE_EXPIRED]:
+        raise ActivityExecutionConflict(
+            code='execution_not_completable',
+            detail='Uma execução cancelada ou expirada não pode ser concluída.',
+        )
     if schedule.state == Schedule.STATE_COMPLETED or schedule.completed:
+        record_completion(schedule)
         return schedule
+
+    if schedule.state not in [Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]:
+        raise ActivityExecutionConflict(
+            code='execution_not_completable',
+            detail='O estado da execução não permite conclusão.',
+        )
 
     now = timezone.now()
     completion_time = min(now, schedule.expected_end_at) if schedule.expected_end_at else now
@@ -343,6 +358,7 @@ def complete_schedule(schedule: Schedule) -> Schedule:
     schedule.save(
         update_fields=['end_time', 'completed', 'state', 'completed_at', 'version']
     )
+    record_completion(schedule)
 
     if schedule.queue_item_id:
         queue_item = schedule.queue_item

@@ -1,6 +1,7 @@
 # apps/pomodoro/urls.py
 from rest_framework.routers import DefaultRouter
 from django.urls import path
+from .weekly_goal_views import WeeklyGoalViewSet
 from .views import (
     ActivityExecutionViewSet,
     ActivityQueueItemViewSet,
@@ -10,6 +11,7 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register(r'weekly-goals', WeeklyGoalViewSet, basename='weekly-goal')
 router.register(r'groups', GroupViewSet, basename='group')
 router.register(r'activities', ActivityViewSet, basename='activity')
 router.register(r'activity-queue/items', ActivityQueueItemViewSet, basename='activity-queue-item')

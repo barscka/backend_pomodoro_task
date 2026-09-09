@@ -786,6 +786,207 @@
           }
         }
       ]
+    },
+    {
+      "name": "Weekly Goals",
+      "description": "Metas por chave de API. Para progresso anterior, adicione week_start=YYYY-MM-DD (segunda-feira). Edições afetam a semana atual; semanas anteriores mantêm a revisão anterior. Cadastro duplicado retorna 409; reutilize a meta existente.",
+      "item": [
+        {
+          "name": "Create weekly goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/weekly-goals/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"metric\":\"minutes\",\"group_id\":{{group_id}},\"target\":240}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected status', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json();",
+                  "if (pm.response.code < 300 && data.id && data.version) { pm.environment.set('goal_id', String(data.id)); pm.environment.set('goal_version', String(data.version)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List weekly goals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": "{{base_url}}/weekly-goals/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected status', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "if (pm.response.code < 300 && data.id && data.version) { pm.environment.set('goal_id', String(data.id)); pm.environment.set('goal_version', String(data.version)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get weekly goal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": "{{base_url}}/weekly-goals/{{goal_id}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected status', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "if (pm.response.code < 300 && data.id && data.version) { pm.environment.set('goal_id', String(data.id)); pm.environment.set('goal_version', String(data.version)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update weekly goal",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/weekly-goals/{{goal_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"target\":300,\"expected_version\":{{goal_version}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected status', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "if (pm.response.code < 300 && data.id && data.version) { pm.environment.set('goal_id', String(data.id)); pm.environment.set('goal_version', String(data.version)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deactivate weekly goal",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/weekly-goals/{{goal_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"active\":false,\"expected_version\":{{goal_version}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected status', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "if (pm.response.code < 300 && data.id && data.version) { pm.environment.set('goal_id', String(data.id)); pm.environment.set('goal_version', String(data.version)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Weekly progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              }
+            ],
+            "url": "{{base_url}}/weekly-goals/progress/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected status', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json();",
+                  "if (pm.response.code < 300 && data.id && data.version) { pm.environment.set('goal_id', String(data.id)); pm.environment.set('goal_version', String(data.version)); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
