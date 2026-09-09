@@ -30,6 +30,11 @@ Principais pontos de integração:
 
 ## 1. Metas semanais com acompanhamento de progresso
 
+Planejamento do backend: [SPEC-BACK-012 — Metas semanais](SPEC-BACK-012_METAS_SEMANAIS.md),
+elaborado em 2026-09-09 e ainda não implementado. Essa especificação detalha as
+decisões propostas para o MVP e substitui as questões em aberto abaixo onde houver
+uma decisão explícita.
+
 ### Objetivo e experiência
 
 Transformar o histórico em acompanhamento de objetivos pessoais. Exemplos:
