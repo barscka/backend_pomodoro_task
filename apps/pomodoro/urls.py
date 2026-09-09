@@ -7,12 +7,14 @@ from .views import (
     ActivityQueueItemViewSet,
     ActivityQueueViewSet,
     ActivityViewSet,
+    CategoryViewSet,
     GroupViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'weekly-goals', WeeklyGoalViewSet, basename='weekly-goal')
 router.register(r'groups', GroupViewSet, basename='group')
+router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'activities', ActivityViewSet, basename='activity')
 router.register(r'activity-queue/items', ActivityQueueItemViewSet, basename='activity-queue-item')
 router.register(r'activity-queue', ActivityQueueViewSet, basename='activity-queue')

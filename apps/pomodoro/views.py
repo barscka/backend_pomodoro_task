@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_api_key.permissions import HasAPIKey
 
-from .models import Activity, ActivityQueueItem, Group, History, Schedule
+from .models import Activity, ActivityQueueItem, Category, Group, History, Schedule
 from .serializers import (
     QueueActivityListResponseSerializer,
     QueueRecreationRequestSerializer,
@@ -14,6 +14,7 @@ from .serializers import (
     ActivityExecutionSerializer,
     ActivityQueueItemSerializer,
     ActivitySerializer,
+    CategorySerializer,
     GroupSerializer,
     HistorySerializer,
 )
@@ -43,6 +44,12 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [HasAPIKey]
     serializer_class = GroupSerializer
     queryset = Group.objects.all()
+
+
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [HasAPIKey]
+    serializer_class = CategorySerializer
+    queryset = Category.objects.select_related('group').order_by('name')
 
 
 class ActivityViewSet(viewsets.ModelViewSet):
