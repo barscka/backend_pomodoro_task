@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from django.db import IntegrityError, transaction
 
 from apps.pomodoro.models import WeeklyGoal, WeeklyGoalRevision
-from apps.pomodoro.repositories.weekly_goals import completion_totals, goals_for_week
+from apps.pomodoro.repositories.weekly_goals import completion_totals, goals_for_week, skip_totals
 
 
 GOAL_TIMEZONE = ZoneInfo('America/Sao_Paulo')
@@ -81,8 +81,61 @@ def update_goal(*, scope_key, goal_id, data, week):
     return goals_for_week(scope_key, week).get(pk=goal.pk)
 
 
-def progress_rows(goals, *, scope_key, start, end, as_of):
+def _destination(goal):
+    if goal.group_id:
+        return {
+            'type': 'group', 'id': goal.group_id, 'name': goal.group.name,
+            'color': goal.group.color, 'group_id': goal.group_id,
+            'group_name': goal.group.name,
+        }
+    return {
+        'type': 'category', 'id': goal.category_id, 'name': goal.category.name,
+        'color': goal.category.color, 'group_id': goal.category.group_id,
+        'group_name': goal.category.group.name,
+    }
+
+
+def _skip_indexes(rows):
+    categories, groups, overall = {}, {}, {}
+
+    def merge(index, destination_id, activity_id, value):
+        current = index.setdefault(destination_id, {}).setdefault(
+            activity_id, {**value, 'skip_count': 0},
+        )
+        current['skip_count'] += value['skip_count']
+
+    for row in rows:
+        activity_id = row['activity_id_snapshot']
+        value = {
+            'activity_id': activity_id,
+            'name': row['activity_name_snapshot'],
+            'skip_count': row['skip_count'],
+        }
+        merge(categories, row['category_id_snapshot'], activity_id, value)
+        merge(groups, row['group_id_snapshot'], activity_id, value)
+        current = overall.setdefault(activity_id, {**value, 'skip_count': 0})
+        current['skip_count'] += row['skip_count']
+    return categories, groups, overall
+
+
+def _activity_signals(values, include_most_skipped):
+    activities = list(values.values())
+    result = {
+        'skip_count': sum(row['skip_count'] for row in activities),
+        'distinct_activities_skipped': len(activities),
+    }
+    if include_most_skipped:
+        result['most_skipped'] = sorted(
+            activities, key=lambda row: (-row['skip_count'], row['name'], row['activity_id']),
+        )[:3]
+    return result
+
+
+def progress_rows(goals, *, scope_key, start, end, as_of, include_activity_signals=False):
     totals = completion_totals(scope_key, start, end, as_of)
+    skip_categories, skip_groups, skip_overall = _skip_indexes(
+        skip_totals(scope_key, start, end, as_of),
+    )
     categories, groups = {}, {}
     overall = {'minutes': 0, 'sessions': 0}
     for row in totals:
@@ -96,6 +149,8 @@ def progress_rows(goals, *, scope_key, start, end, as_of):
     for goal in goals:
         values = (overall if goal.is_all_groups else groups.get(goal.group_id, {})
                   if goal.group_id else categories.get(goal.category_id, {}))
+        skips = (skip_overall if goal.is_all_groups else skip_groups.get(goal.group_id, {})
+                 if goal.group_id else skip_categories.get(goal.category_id, {}))
         achieved = values.get(goal.metric, 0)
         percent = (Decimal(achieved) * 100 / Decimal(goal.target)).quantize(
             Decimal('0.01'), rounding=ROUND_HALF_UP,
@@ -103,8 +158,10 @@ def progress_rows(goals, *, scope_key, start, end, as_of):
         result.append({
             'goal_id': goal.pk, 'metric': goal.metric,
             'group_id': goal.group_id, 'category_id': goal.category_id,
+            'destination': _destination(goal),
             'target': goal.target, 'achieved': achieved,
             'remaining': max(goal.target - achieved, 0), 'progress_percent': str(percent),
             'is_achieved': achieved >= goal.target,
+            'activity_signals': _activity_signals(skips, include_activity_signals),
         })
     return result

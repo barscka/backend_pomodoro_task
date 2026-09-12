@@ -524,3 +524,41 @@ class GoalCompletion(models.Model):
             models.Index(fields=['scope_key', 'group_id_snapshot', 'completed_at'], name='goal_fact_group_time_idx'),
             models.Index(fields=['scope_key', 'category_id_snapshot', 'completed_at'], name='goal_fact_category_time_idx'),
         ]
+
+
+class GoalActivitySkip(models.Model):
+    """Immutable activity-skip fact used by weekly goal analytics."""
+
+    CONTEXT_CHOICES = [
+        ('live_skip', 'Pulo confirmado'),
+        ('legacy_current', 'Contexto atual do legado'),
+    ]
+
+    source_queue_item_id = models.PositiveBigIntegerField(unique=True)
+    source_queue_id = models.PositiveBigIntegerField()
+    scope_key = models.CharField(max_length=64)
+    activity_id_snapshot = models.PositiveBigIntegerField()
+    activity_name_snapshot = models.CharField(max_length=100)
+    category_id_snapshot = models.PositiveBigIntegerField()
+    category_name_snapshot = models.CharField(max_length=50)
+    category_color_snapshot = models.CharField(max_length=7)
+    group_id_snapshot = models.PositiveBigIntegerField()
+    group_name_snapshot = models.CharField(max_length=50)
+    group_color_snapshot = models.CharField(max_length=7)
+    queue_mode_snapshot = models.CharField(max_length=24)
+    skipped_at = models.DateTimeField()
+    context_source = models.CharField(max_length=16, choices=CONTEXT_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['scope_key', 'skipped_at'], name='goal_skip_scope_time_idx'),
+            models.Index(
+                fields=['scope_key', 'group_id_snapshot', 'skipped_at'],
+                name='goal_skip_group_time_idx',
+            ),
+            models.Index(
+                fields=['scope_key', 'category_id_snapshot', 'skipped_at'],
+                name='goal_skip_category_time_idx',
+            ),
+        ]

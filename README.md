@@ -46,7 +46,15 @@ metas compartilhadas; rotação de chave não migra metas automaticamente.
 | GET | `/api/weekly-goals/` | Listar; filtro opcional `active=true` ou `false` |
 | GET | `/api/weekly-goals/<id>/` | Consultar configuração e versão |
 | PATCH | `/api/weekly-goals/<id>/` | Editar alvo ou ativação com `expected_version` |
-| GET | `/api/weekly-goals/progress/` | Progresso da semana atual ou `week_start=YYYY-MM-DD` |
+| GET | `/api/weekly-goals/progress/` | Progresso, destino descritivo e contadores de pulos da semana atual ou `week_start=YYYY-MM-DD` |
+
+O progresso preserva os campos originais e inclui `destination` e
+`activity_signals`, com `skip_count` (ações de pular) separado de
+`distinct_activities_skipped` (atividades distintas). Para receber também as três
+atividades mais puladas, use
+`GET /api/weekly-goals/progress/?include=activity_signals`. Valores desconhecidos
+de `include` retornam `400 invalid_include`. Pulos são apenas sinais contextuais:
+não alteram o progresso nem a ordenação da fila.
 
 Cadastro de exemplo:
 
@@ -86,6 +94,8 @@ antes de liberar o uso de metas aos clientes:
 poetry run python manage.py migrate --noinput
 poetry run python manage.py backfill_goal_completions --dry-run
 poetry run python manage.py backfill_goal_completions --batch-size 500
+poetry run python manage.py backfill_goal_activity_skips --dry-run
+poetry run python manage.py backfill_goal_activity_skips --batch-size 500
 ```
 
 Esses são comandos de implantação; não fazem parte da suíte de testes. O dry-run

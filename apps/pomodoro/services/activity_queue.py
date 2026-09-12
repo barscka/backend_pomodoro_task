@@ -18,6 +18,7 @@ from apps.pomodoro.models import (
     History,
     Schedule,
 )
+from apps.pomodoro.services.goal_activity_skips import record_activity_skip
 
 
 class QueueConflict(Exception):
@@ -705,7 +706,9 @@ def present_next_item(*, scope_key: str, selected_group: Group | None) -> QueueP
 
 @transaction.atomic
 def skip_item(*, queue_item_id: int, scope_key: str):
-    item = ActivityQueueItem.objects.select_related('queue', 'activity').select_for_update().get(
+    item = ActivityQueueItem.objects.select_related(
+        'queue', 'activity__category__group',
+    ).select_for_update().get(
         pk=queue_item_id
     )
     queue = item.queue
@@ -744,5 +747,6 @@ def skip_item(*, queue_item_id: int, scope_key: str):
         event_type=ActivityPreferenceEvent.EVENT_SKIPPED,
         defaults={'weight_delta': 1},
     )
+    record_activity_skip(item)
     finalize_queue_if_finished(queue)
     return item

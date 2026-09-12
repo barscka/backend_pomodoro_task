@@ -81,10 +81,17 @@ class WeeklyGoalViewSet(viewsets.GenericViewSet):
         now = timezone.now()
         scope = build_scope_key(request)
         week = parse_week(request.query_params.get('week_start'), now)
+        includes = request.query_params.getlist('include')
+        if includes and includes != ['activity_signals']:
+            raise GoalError(
+                'invalid_include',
+                'include aceita somente activity_signals, uma única vez.',
+            )
         start, end = week_bounds(week)
         goals = self.paginate_queryset(goals_for_week(scope, week).filter(active=True))
         response = self.get_paginated_response(progress_rows(
             goals, scope_key=scope, start=start, end=end, as_of=now,
+            include_activity_signals=bool(includes),
         ))
         response.data = {
             'week_start': week.isoformat(),
