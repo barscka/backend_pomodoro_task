@@ -3,8 +3,15 @@
 ## Status e ordem de trabalho
 
 Registrado em 2026-09-09. As três ideias foram selecionadas pelo usuário para trabalho
-futuro. O backend da etapa 1 foi implementado em 2026-09-09; implantação e integração
-do frontend permanecem pendentes. As etapas 2 e 3 ainda não foram implementadas.
+futuro. O backend da etapa 1 foi implementado em 2026-09-09. Em 2026-09-16, o usuário
+confirmou a funcionalidade implementada e a leitura do Flutter confirmou telas e
+integração de metas. As etapas 2 e 3 continuam como propostas futuras.
+
+Nova evolução planejada em 2026-09-16: [Premium — escolha livre, continuidade e
+acompanhamento por período](SPEC-014_PREMIUM_SESSOES_LIVRES_E_ACOMPANHAMENTO.md).
+Permite escolher/repetir jogos premium sem depender da fila e acompanhar horas
+dentro de cada vigência, com referência total de 5 horas diárias. Inclui backend
+e fluxos Flutter mobile/desktop; não depende da implementação completa das rotinas.
 
 Ordem acordada:
 
@@ -176,8 +183,9 @@ Estimativa qualitativa: complexidade média.
 
 ## Retomada do trabalho
 
-Continuar a etapa 1 pela implantação do backend e integração do frontend à
-SPEC-BACK-012. As etapas seguintes permanecem propostas para trabalho posterior.
+A etapa 1 está implementada conforme atualização acima. A nova frente premium está
+planejada na SPEC-014, ainda sem código. Pausas e rotinas gerais permanecem propostas
+para trabalho posterior.
 
 Para cada etapa, preservar os contratos existentes e validar regras de negócio e
 API em banco de teste isolado, conforme os padrões pessoais Python API e de fluxo
