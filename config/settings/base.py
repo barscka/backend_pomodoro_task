@@ -140,3 +140,6 @@ REST_FRAMEWORK = {
     #     'rest_framework.authentication.TokenAuthentication',
     # ],
 }
+
+# Habilitar somente depois que o cliente aceitar execuções sem queue_item_id.
+PREMIUM_DIRECT_START_ENABLED = os.getenv('PREMIUM_DIRECT_START_ENABLED', 'False') == 'True'

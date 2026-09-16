@@ -69,7 +69,8 @@ class Category(models.Model):
         today = timezone.now().date()
         return History.objects.filter(
             activity__category=self,
-            start_time__date=today
+            start_time__date=today,
+            schedule__execution_origin__in=[Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY],
         ).count()
     
     def can_execute_more(self):
@@ -204,6 +205,10 @@ class Activity(models.Model):
 
 
 class Schedule(models.Model):
+    ORIGIN_QUEUE = 'queue'
+    ORIGIN_PREMIUM_DIRECT = 'premium_direct'
+    ORIGIN_LEGACY = 'legacy'
+    ORIGIN_CHOICES = [(ORIGIN_QUEUE, 'Queue'), (ORIGIN_PREMIUM_DIRECT, 'Premium direct'), (ORIGIN_LEGACY, 'Legacy')]
     STATE_PREPARING = 'preparing'
     STATE_RUNNING = 'running'
     STATE_COMPLETED = 'completed'
@@ -247,6 +252,11 @@ class Schedule(models.Model):
     expected_end_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    execution_origin = models.CharField(max_length=20, choices=ORIGIN_CHOICES, default=ORIGIN_QUEUE, db_index=True)
+    premium_period = models.ForeignKey('PremiumPeriod', null=True, blank=True, on_delete=models.PROTECT, related_name='schedules')
+    planned_duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    continued_from = models.OneToOneField('self', null=True, blank=True, on_delete=models.PROTECT, related_name='continuation')
+    return_group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.PROTECT, related_name='return_schedules')
 
     class Meta:
         ordering = ['scheduled_date']
@@ -446,7 +456,7 @@ class History(models.Model):
 
     def save(self, *args, **kwargs):
         """Atualiza o contador ao criar um novo histórico"""
-        if not self.pk:  # Se for uma criação nova
+        if not self.pk and self.schedule.execution_origin != Schedule.ORIGIN_PREMIUM_DIRECT:
             self.activity.executions_today += 1
             self.activity.save()
         super().save(*args, **kwargs)
@@ -513,6 +523,11 @@ class GoalCompletion(models.Model):
     group_id_snapshot = models.PositiveBigIntegerField()
     completed_at = models.DateTimeField()
     duration_minutes = models.PositiveIntegerField()
+    activity_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True)
+    activity_name_snapshot = models.CharField(max_length=100, blank=True, default='')
+    started_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    execution_origin = models.CharField(max_length=20, choices=Schedule.ORIGIN_CHOICES, default=Schedule.ORIGIN_LEGACY)
     context_source = models.CharField(max_length=16, choices=[
         ('execution_start', 'Início da execução'), ('legacy_current', 'Contexto atual do legado'),
     ])
@@ -524,6 +539,49 @@ class GoalCompletion(models.Model):
             models.Index(fields=['scope_key', 'group_id_snapshot', 'completed_at'], name='goal_fact_group_time_idx'),
             models.Index(fields=['scope_key', 'category_id_snapshot', 'completed_at'], name='goal_fact_category_time_idx'),
         ]
+
+
+class PremiumPeriod(models.Model):
+    KIND_PAID = 'paid'
+    KIND_FOCUS = 'focus'
+    KIND_CHOICES = [(KIND_PAID, 'Pago'), (KIND_FOCUS, 'Foco')]
+
+    activity = models.ForeignKey(Activity, on_delete=models.PROTECT, related_name='premium_periods')
+    kind = models.CharField(max_length=8, choices=KIND_CHOICES)
+    title = models.CharField(max_length=120)
+    starts_on = models.DateField()
+    ends_on = models.DateField()
+    timezone = models.CharField(max_length=64, default='America/Sao_Paulo')
+    ended_early_at = models.DateTimeField(null=True, blank=True)
+    source = models.CharField(max_length=24, default='native')
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-starts_on', '-id']
+        constraints = [models.CheckConstraint(condition=Q(ends_on__gte=models.F('starts_on')), name='premium_period_valid_dates')]
+
+
+class ExecutionIdempotency(models.Model):
+    scope_key = models.CharField(max_length=64)
+    request_id = models.UUIDField()
+    payload_hash = models.CharField(max_length=64)
+    schedule = models.ForeignKey(Schedule, null=True, blank=True, on_delete=models.SET_NULL, related_name='idempotency_records')
+    schedule_id_tombstone = models.PositiveBigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['scope_key', 'request_id'], name='execution_request_scope_unique')]
+
+
+class GameplayTrackingSettings(models.Model):
+    scope_key = models.CharField(max_length=64, unique=True)
+    daily_reference_minutes = models.PositiveIntegerField(default=300)
+    groups = models.ManyToManyField(Group, blank=True, related_name='gameplay_settings')
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class GoalActivitySkip(models.Model):

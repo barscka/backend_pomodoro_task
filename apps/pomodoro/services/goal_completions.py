@@ -29,6 +29,11 @@ def completion_values(schedule):
         'group_id_snapshot': schedule.goal_group_id_snapshot if has_snapshot else category.group_id,
         'completed_at': schedule.completed_at,
         'duration_minutes': history.duration,
+        'activity_id_snapshot': schedule.activity_id,
+        'activity_name_snapshot': schedule.activity.name,
+        'started_at': history.start_time,
+        'duration_seconds': max(int((history.end_time - history.start_time).total_seconds()), 0),
+        'execution_origin': schedule.execution_origin,
         'context_source': 'execution_start' if has_snapshot else 'legacy_current',
     }, None
 

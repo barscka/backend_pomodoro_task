@@ -1,0 +1,9 @@
+{
+  "active_period": {"id": 42, "activity": 7, "activity_name": "Jogo", "kind": "paid", "title": "Passe", "starts_on": "2026-09-01", "ends_on": "2026-09-30", "timezone": "America/Sao_Paulo", "ended_early_at": null, "status": "active", "version": 1},
+  "expired_period": {"id": 41, "activity": 7, "kind": "paid", "starts_on": "2026-08-01", "ends_on": "2026-08-31", "status": "ended", "version": 1},
+  "renewed_period": {"id": 43, "activity": 7, "kind": "paid", "starts_on": "2026-10-01", "ends_on": "2026-10-31", "status": "future", "version": 1},
+  "legacy_partial": {"coverage": "partial", "pending_reconciliation_count": 0},
+  "direct_execution": {"execution_id": 99, "queue_id": null, "queue_item_id": null, "queue_group_id": null, "queue_group_name": null, "execution_origin": "premium_direct", "planned_duration_seconds": 1800, "premium_period_id": 42, "return_group_id": 3, "version": 1},
+  "start_request": {"duration_minutes": 30, "request_id": "550e8400-e29b-41d4-a716-446655440000", "return_group_id": 3},
+  "continue_request": {"duration_minutes": 30, "request_id": "550e8400-e29b-41d4-a716-446655440001", "expected_version": 2}
+}

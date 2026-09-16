@@ -281,6 +281,8 @@ def start_activity(
         )
 
     expected_end_at = now + timedelta(minutes=activity.duration)
+    from apps.pomodoro.services.premium_periods import active_period_for_activity
+    premium_period = active_period_for_activity(activity, at=now)
     queue_item.state = ActivityQueueItem.STATE_STARTED
     queue_item.presented_at = queue_item.presented_at or now
     queue_item.started_at = now
@@ -302,6 +304,9 @@ def start_activity(
                 requested_at=now,
                 starts_at=now,
                 expected_end_at=expected_end_at,
+                execution_origin=Schedule.ORIGIN_QUEUE,
+                premium_period=premium_period,
+                planned_duration_seconds=activity.duration * 60,
             )
     except IntegrityError:
         return _raise_integrity_conflict(

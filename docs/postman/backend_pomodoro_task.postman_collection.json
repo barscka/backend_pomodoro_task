@@ -987,6 +987,386 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Premium SPEC-014",
+      "item": [
+        {
+          "name": "List premium periods",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-periods/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-periods"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create premium period",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-periods/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-periods"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activity\": 7,\n  \"kind\": \"paid\",\n  \"title\": \"Passe\",\n  \"starts_on\": \"2026-09-01\",\n  \"ends_on\": \"2026-09-30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Patch future premium period",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-periods/42/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-periods",
+                "42"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": 1,\n  \"title\": \"Passe renovado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "End premium period early",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-periods/42/end/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-periods",
+                "42",
+                "end"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Start premium directly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-periods/42/start/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-periods",
+                "42",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"duration_minutes\": 30,\n  \"request_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"return_group_id\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Continue premium execution",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/activity-executions/99/continue/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "activity-executions",
+                "99",
+                "continue"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"duration_minutes\": 30,\n  \"request_id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"expected_version\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Premium period stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-periods/42/stats/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-periods",
+                "42",
+                "stats"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Premium analytics summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-analytics/summary/?date_from=2026-09-01&date_to=2026-09-30",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-analytics",
+                "summary",
+                "?date_from=2026-09-01&date_to=2026-09-30"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Premium analytics daily",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-analytics/daily/?date_from=2026-09-01&date_to=2026-09-30",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-analytics",
+                "daily",
+                "?date_from=2026-09-01&date_to=2026-09-30"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Premium analytics history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium-analytics/history/?period_id=42&origin=premium_direct",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium-analytics",
+                "history",
+                "?period_id=42&origin=premium_direct"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get gameplay settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/gameplay-tracking-settings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "gameplay-tracking-settings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Patch gameplay settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/gameplay-tracking-settings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "gameplay-tracking-settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"daily_reference_minutes\": 300,\n  \"group_ids\": [\n    3\n  ],\n  \"expected_version\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

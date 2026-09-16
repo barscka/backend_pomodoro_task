@@ -1,6 +1,6 @@
 # SPEC-014 — Premium: escolha livre, continuidade e acompanhamento por período
 
-Data: 2026-09-16. Status: planejamento de produto, backend e Flutter; não implementado.
+Data: 2026-09-16. Status: backend implementado; Flutter e liberação da flag pendentes.
 
 ## 1. Objetivo
 
@@ -440,11 +440,11 @@ precisa preservar história temporal. Não exige implementar todas as rotinas da
 
 ## 11. Estado desta task
 
-Somente análise e documentação. Padrões: personal-python-api, personal-flutter e
-personal-dev-workflow. Doctors dos dois projetos passaram, com aviso de variável
-PERSONAL_SKILLS_HOME ausente (local_path resolve corretamente).
+Backend entregue com schema aditivo, APIs, comandos de legado, documentação, Postman
+e testes isolados. `PREMIUM_DIRECT_START_ENABLED` permanece falso por padrão até o
+Flutter aceitar `queue_item_id` nulo. Períodos importados recebem `legacy_inferred`
+e exigem revisão humana de `paid`/`focus`; lacunas históricas permanecem declaradas
+como cobertura parcial. Nenhum banco real ou arquivo do frontend foi alterado.
 
-Nenhum código, banco ou arquivo do frontend foi alterado. As decisões de UX, limites
-de bloco, referência informativa e tratamento das cotas acima são a proposta para
-execução futura. Custo por hora, telemetria Steam/jogo, cronômetro sem término, pausas,
-correção manual de horas e rotinas por horário não fazem parte do MVP.
+Custo por hora, telemetria Steam/jogo, cronômetro sem término, pausas, correção manual
+de horas e rotinas por horário continuam fora do MVP.

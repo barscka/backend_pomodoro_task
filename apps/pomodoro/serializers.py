@@ -9,6 +9,7 @@ from .models import (
     Group,
     History,
     Schedule,
+    PremiumPeriod,
 )
 from .services.activity_queue import group_daily_metrics
 
@@ -40,6 +41,12 @@ class ActivitySerializer(serializers.ModelSerializer):
                  'can_execute', 'remaining_executions', 'group_id', 'group_name']
 
     def validate(self, attrs):
+        if self.instance and self.instance.premium_periods.exists() and any(
+            key in attrs for key in ('premium', 'premium_from', 'premium_until')
+        ):
+            raise serializers.ValidationError(
+                'A vigência desta atividade é gerenciada por premium-periods.'
+            )
         premium = attrs.get('premium', self.instance.premium if self.instance else False)
         premium_from = attrs.get(
             'premium_from', self.instance.premium_from if self.instance else None
@@ -267,6 +274,11 @@ class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.Model
             'remaining_seconds',
             'server_now',
             'version',
+            'execution_origin',
+            'planned_duration_seconds',
+            'premium_period_id',
+            'continued_from_id',
+            'return_group_id',
         ]
 
     def get_server_now(self, _obj):
@@ -281,6 +293,52 @@ class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.Model
             return 0
         delta = obj.expected_end_at - timezone.now()
         return max(int(delta.total_seconds()), 0)
+
+
+class PremiumPeriodSerializer(serializers.ModelSerializer):
+    activity_name = serializers.CharField(source='activity.name', read_only=True)
+    activity_group_id = serializers.IntegerField(source='activity.category.group_id', read_only=True)
+    activity_group_name = serializers.CharField(source='activity.category.group.name', read_only=True)
+    effective_end_at = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PremiumPeriod
+        fields = ['id', 'activity', 'activity_name', 'activity_group_id', 'activity_group_name',
+                  'kind', 'title', 'starts_on', 'ends_on', 'timezone', 'ended_early_at',
+                  'effective_end_at', 'status', 'source', 'version', 'created_at', 'updated_at']
+        read_only_fields = ['ended_early_at', 'source', 'version', 'created_at', 'updated_at']
+
+    def get_effective_end_at(self, obj):
+        from .services.premium_periods import bounds
+        return bounds(obj)[1]
+
+    def get_status(self, obj):
+        from django.utils import timezone
+        from .services.premium_periods import bounds
+        start, end = bounds(obj)
+        now = timezone.now()
+        return 'future' if now < start else ('active' if now < end else 'ended')
+
+    def validate(self, attrs):
+        starts = attrs.get('starts_on', getattr(self.instance, 'starts_on', None))
+        ends = attrs.get('ends_on', getattr(self.instance, 'ends_on', None))
+        if starts and ends and starts > ends:
+            raise serializers.ValidationError({'ends_on': 'A data final deve ser igual ou posterior à inicial.'})
+        timezone_name = attrs.get('timezone', getattr(self.instance, 'timezone', 'America/Sao_Paulo'))
+        if timezone_name != 'America/Sao_Paulo':
+            raise serializers.ValidationError({'timezone': 'O fuso desta versão deve ser America/Sao_Paulo.'})
+        return attrs
+
+
+class PremiumStartSerializer(serializers.Serializer):
+    duration_minutes = serializers.IntegerField(min_value=1, max_value=720)
+    request_id = serializers.UUIDField()
+    return_group_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+
+
+class PremiumContinueSerializer(PremiumStartSerializer):
+    expected_version = serializers.IntegerField(min_value=1)
 
 
 class QueueRecreationRequestSerializer(serializers.Serializer):

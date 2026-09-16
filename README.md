@@ -352,3 +352,34 @@ Antes de liberar novas escritas no PostgreSQL, o rollback consiste em parar o Co
 Depois de novas escritas no PostgreSQL, retornar diretamente ao SQLite perde dados. Nesse caso, prefira correção progressiva ou prepare uma migração reversa em nova janela de manutenção.
 
 Consulte [a spec de migração](docs/specs/MIGRACAO_POSTGRES.md) antes do deploy.
+
+## Premium por período (SPEC-014)
+
+O backend preserva renovações em `PremiumPeriod`, permite sessões diretas com duração de 1 a 720 minutos e calcula tempo premium pela interseção exata entre sessão, vigência e consulta. Sessões `premium_direct` entram no histórico e nas metas, mas ficam fora das cotas operacionais da fila. O catálogo é compartilhado; execuções, configurações e relatórios usam o escopo derivado da chave da API.
+
+Novos inícios ficam desabilitados por padrão. Depois de publicar um cliente que aceite `queue_item_id: null`, habilite:
+
+```env
+PREMIUM_DIRECT_START_ENABLED=True
+```
+
+Antes da liberação, execute no ambiente de destino, primeiro em simulação:
+
+```bash
+python manage.py migrate --noinput
+python manage.py import_legacy_premium_periods --dry-run --kind focus
+python manage.py import_legacy_premium_periods --kind focus
+python manage.py enrich_goal_completion_facts --dry-run
+python manage.py enrich_goal_completion_facts
+```
+
+Classifique períodos importados como `paid` quando aplicável. O importador usa `focus` por segurança, pois o legado não registra a natureza do período. Os contratos completos estão em `docs/contracts/spec-014-premium.json` e na coleção Postman.
+
+O teste de locks requer uma instância PostgreSQL descartável cujo banco termine em `_test`:
+
+```bash
+TESTING=true TEST_POSTGRES_DB=pomodoro_spec014_test \
+TEST_POSTGRES_USER=postgres TEST_POSTGRES_PASSWORD=postgres \
+python manage.py test apps.pomodoro.test_spec_014_postgres \
+  --settings=config.settings.postgres_concurrency
+```

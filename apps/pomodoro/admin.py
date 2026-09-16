@@ -6,7 +6,7 @@ from django.shortcuts import redirect
 from django.urls import path, reverse
 
 from .models import Activity, ActivityQueue, ActivityQueueItem, Category, Group, History, Schedule
-from .models import GoalActivitySkip, GoalCompletion, WeeklyGoal, WeeklyGoalRevision
+from .models import GoalActivitySkip, GoalCompletion, WeeklyGoal, WeeklyGoalRevision, PremiumPeriod, GameplayTrackingSettings, ExecutionIdempotency
 
 
 class ReadOnlyGoalAdmin(admin.ModelAdmin):
@@ -18,6 +18,23 @@ class ReadOnlyGoalAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(PremiumPeriod)
+class PremiumPeriodAdmin(admin.ModelAdmin):
+    list_display = ('activity', 'kind', 'starts_on', 'ends_on', 'ended_early_at', 'version')
+    list_filter = ('kind', 'source')
+    search_fields = ('activity__name', 'title')
+
+
+@admin.register(GameplayTrackingSettings)
+class GameplayTrackingSettingsAdmin(ReadOnlyGoalAdmin):
+    list_display = ('scope_key', 'daily_reference_minutes', 'version')
+
+
+@admin.register(ExecutionIdempotency)
+class ExecutionIdempotencyAdmin(ReadOnlyGoalAdmin):
+    list_display = ('scope_key', 'request_id', 'schedule_id_tombstone', 'created_at')
 
 
 @admin.register(WeeklyGoal)
@@ -71,6 +88,12 @@ class ActivityAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description')
     readonly_fields = ('external_source', 'external_id')
 
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if obj and obj.premium_periods.exists():
+            fields.extend(['premium', 'premium_from', 'premium_until'])
+        return fields
+
     def get_urls(self):
         custom_urls = [
             path(
@@ -114,6 +137,11 @@ class ActivityAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         previous = activity_snapshot(Activity.objects.get(pk=obj.pk)) if change else None
         super().save_model(request, obj, form, change)
+        if obj.premium and not obj.premium_periods.exists():
+            from .services.premium_periods import create_period
+            create_period(activity_id=obj.id, kind='focus', title=obj.name,
+                          starts_on=obj.premium_from, ends_on=obj.premium_until,
+                          source='legacy_compat')
         reconcile_activity(obj, previous=previous)
 
 @admin.register(History)

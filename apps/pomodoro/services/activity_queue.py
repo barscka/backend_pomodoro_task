@@ -116,15 +116,14 @@ def get_requested_group(request):
 
 
 def expire_finished_premiums():
-    Activity.objects.filter(
-        premium=True,
-        premium_until__lt=timezone.localdate(),
-    ).update(premium=False)
+    from apps.pomodoro.services.premium_periods import sync_activity_premium_projections
+    sync_activity_premium_projections()
 
 
 def group_reserved_minutes(group: Group, *, day=None) -> int:
     day = day or timezone.localdate()
     histories = History.objects.filter(start_time__date=day)
+    histories = histories.filter(schedule__execution_origin__in=[Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY])
     if not group.is_default:
         histories = histories.filter(activity__category__group=group)
     return histories.aggregate(total=Sum('activity__duration'))['total'] or 0
@@ -151,14 +150,16 @@ def diagnose_empty_queue(group: Group) -> str:
     available_categories = Category.objects.filter(activities__in=base).annotate(
         started=Count(
             'activities__histories',
-            filter=Q(activities__histories__start_time__date=today),
+            filter=Q(activities__histories__start_time__date=today,
+                     activities__histories__schedule__execution_origin__in=[Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY]),
         )
     ).filter(started__lt=F('max_daily_executions'))
     if not available_categories.exists():
         return 'category_daily_limit_reached'
 
     candidates = base.filter(category__in=available_categories).exclude(
-        id__in=History.objects.filter(end_time__date=today).values('activity_id')
+        id__in=History.objects.filter(end_time__date=today,
+            schedule__execution_origin__in=[Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY]).values('activity_id')
     )
     if remaining is not None and candidates.exists() and not candidates.filter(
         duration__lte=remaining
@@ -169,7 +170,8 @@ def diagnose_empty_queue(group: Group) -> str:
 
 def category_started_count(category: Category, *, day=None) -> int:
     day = day or timezone.localdate()
-    return History.objects.filter(activity__category=category, start_time__date=day).count()
+    return History.objects.filter(activity__category=category, start_time__date=day,
+        schedule__execution_origin__in=[Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY]).count()
 
 
 def activity_is_eligible(
@@ -187,6 +189,7 @@ def activity_is_eligible(
     if not include_done_today and History.objects.filter(
         activity=activity,
         end_time__date=timezone.localdate(),
+        schedule__execution_origin__in=[Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY],
     ).exists():
         return False
     if activity.is_premium_active and Schedule.objects.filter(

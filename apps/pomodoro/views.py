@@ -1,12 +1,14 @@
 import logging
 
-from django.db import transaction
+from django.db import models, transaction
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework_api_key.permissions import HasAPIKey
 
-from .models import Activity, ActivityQueueItem, Category, Group, History, Schedule
+from .models import Activity, ActivityQueueItem, Category, Group, History, Schedule, PremiumPeriod, GameplayTrackingSettings, GoalCompletion
 from .serializers import (
     QueueActivityListResponseSerializer,
     QueueRecreationRequestSerializer,
@@ -17,6 +19,7 @@ from .serializers import (
     CategorySerializer,
     GroupSerializer,
     HistorySerializer,
+    PremiumPeriodSerializer, PremiumStartSerializer, PremiumContinueSerializer,
 )
 from .services.activity_execution import (
     ActivityExecutionConflict,
@@ -38,6 +41,12 @@ from .services.activity_queue import (
 from .services.activity_queue_reconciliation import activity_snapshot, reconcile_activity
 
 logger = logging.getLogger(__name__)
+
+
+class PremiumPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -76,12 +85,22 @@ class ActivityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         with transaction.atomic():
             activity = serializer.save()
+            if activity.premium and not activity.premium_periods.exists():
+                from .services.premium_periods import create_period
+                create_period(activity_id=activity.id, kind='focus', title=activity.name,
+                              starts_on=activity.premium_from, ends_on=activity.premium_until,
+                              source='legacy_compat')
             reconcile_activity(activity)
 
     def perform_update(self, serializer):
         with transaction.atomic():
             previous = activity_snapshot(self.get_object())
             activity = serializer.save()
+            if activity.premium and not activity.premium_periods.exists():
+                from .services.premium_periods import create_period
+                create_period(activity_id=activity.id, kind='focus', title=activity.name,
+                              starts_on=activity.premium_from, ends_on=activity.premium_until,
+                              source='legacy_compat')
             reconcile_activity(activity, previous=previous)
 
     @action(detail=False, methods=['get'])
@@ -457,3 +476,224 @@ class ActivityExecutionViewSet(viewsets.GenericViewSet):
             return Response(status=status.HTTP_404_NOT_FOUND)
         schedule = reconcile_schedule(schedule)
         return Response(ActivityExecutionSerializer(schedule, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='continue')
+    def continue_(self, request, pk=None):
+        serializer = PremiumContinueSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            predecessor = self.get_queryset().get(pk=pk, scope_key=build_scope_key(request))
+            if not predecessor.premium_period_id:
+                return Response({'code': 'continuation_not_available', 'detail': 'A execução não possui período premium recuperável.'}, status=409)
+            from .services.premium_execution import start_premium
+            schedule, created = start_premium(
+                period_id=predecessor.premium_period_id, scope_key=build_scope_key(request),
+                continued_from_id=predecessor.id, **serializer.validated_data)
+        except Schedule.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except ActivityExecutionConflict as exc:
+            payload = {'code': exc.code, 'detail': exc.detail}
+            if exc.schedule:
+                payload['active_execution'] = ActivityExecutionSerializer(exc.schedule, context={'request': request}).data
+            return Response(payload, status=status.HTTP_409_CONFLICT)
+        return Response(ActivityExecutionSerializer(schedule, context={'request': request}).data,
+                        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class PremiumPeriodViewSet(viewsets.ModelViewSet):
+    permission_classes = [HasAPIKey]
+    serializer_class = PremiumPeriodSerializer
+    queryset = PremiumPeriod.objects.select_related('activity__category__group')
+    pagination_class = PremiumPagination
+    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.query_params.get('activity_id'):
+            queryset = queryset.filter(activity_id=self.request.query_params['activity_id'])
+        requested_status = self.request.query_params.get('status')
+        if requested_status:
+            now = timezone.now()
+            today = timezone.localdate(now)
+            if requested_status == 'future':
+                queryset = queryset.filter(starts_on__gt=today, ended_early_at__isnull=True)
+            elif requested_status == 'active':
+                queryset = queryset.filter(starts_on__lte=today, ends_on__gte=today, ended_early_at__isnull=True)
+            elif requested_status == 'ended':
+                queryset = queryset.filter(models.Q(ends_on__lt=today) | models.Q(ended_early_at__isnull=False))
+        return queryset
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        from .services.premium_periods import create_period, PremiumPeriodConflict
+        try:
+            period = create_period(activity_id=serializer.validated_data.pop('activity').id, **serializer.validated_data)
+        except PremiumPeriodConflict as exc:
+            return Response({'code': exc.code, 'detail': exc.detail}, status=status.HTTP_409_CONFLICT)
+        return Response(self.get_serializer(period).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, pk=None):
+        from .services.premium_periods import validate_no_overlap, sync_activity_premium_projection, PremiumPeriodConflict
+        with transaction.atomic():
+            period = self.get_queryset().select_for_update().get(pk=pk)
+            expected = request.data.get('expected_version')
+            if expected is None or int(expected) != period.version:
+                return Response({'code': 'stale_period_version', 'detail': 'Versão desatualizada.'}, status=409)
+            if period.schedules.exists() or timezone.now() >= __import__('apps.pomodoro.services.premium_periods', fromlist=['bounds']).bounds(period)[0]:
+                return Response({'code': 'premium_period_edit_locked', 'detail': 'Período iniciado ou utilizado não pode ser alterado.'}, status=409)
+            serializer = self.get_serializer(period, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            starts = serializer.validated_data.get('starts_on', period.starts_on)
+            ends = serializer.validated_data.get('ends_on', period.ends_on)
+            try:
+                validate_no_overlap(period.activity, starts, ends, exclude_id=period.id)
+            except PremiumPeriodConflict as exc:
+                return Response({'code': exc.code, 'detail': exc.detail}, status=409)
+            period = serializer.save(version=period.version + 1)
+            sync_activity_premium_projection(period.activity)
+        return Response(self.get_serializer(period).data)
+
+    @action(detail=True, methods=['post'])
+    def end(self, request, pk=None):
+        period = self.get_object()
+        if not period.ended_early_at:
+            from .services.premium_periods import bounds
+            now = timezone.now()
+            if now < bounds(period)[0]:
+                return Response({'code': 'premium_period_not_started', 'detail': 'Um período futuro não pode ser encerrado antecipadamente.'}, status=409)
+            period.ended_early_at = now
+            period.version += 1
+            period.save(update_fields=['ended_early_at', 'version', 'updated_at'])
+            from .services.premium_periods import sync_activity_premium_projection
+            sync_activity_premium_projection(period.activity)
+        return Response(self.get_serializer(period).data)
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        serializer = PremiumStartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            from .services.premium_execution import start_premium
+            schedule, created = start_premium(period_id=pk, scope_key=build_scope_key(request), **serializer.validated_data)
+        except ActivityExecutionConflict as exc:
+            payload = {'code': exc.code, 'detail': exc.detail}
+            if exc.schedule:
+                payload['active_execution'] = ActivityExecutionSerializer(exc.schedule, context={'request': request}).data
+            return Response(payload, status=409)
+        return Response(ActivityExecutionSerializer(schedule, context={'request': request}).data,
+                        status=201 if created else 200)
+
+    @action(detail=True, methods=['get'])
+    def stats(self, request, pk=None):
+        from .services.premium_reporting import period_stats
+        return Response(period_stats(self.get_object(), build_scope_key(request)))
+
+
+class PremiumAnalyticsViewSet(viewsets.GenericViewSet):
+    permission_classes = [HasAPIKey]
+
+    def _dates(self, request):
+        from datetime import timedelta
+        today = timezone.localdate()
+        try:
+            start = timezone.datetime.fromisoformat(request.query_params.get('date_from', str(today - timedelta(days=29)))).date()
+            end = timezone.datetime.fromisoformat(request.query_params.get('date_to', str(today))).date()
+        except ValueError:
+            return None
+        if start > end or (end - start).days > 365:
+            return None
+        return start, end
+
+    @action(detail=False, methods=['get'])
+    def daily(self, request):
+        dates = self._dates(request)
+        if not dates:
+            return Response({'code': 'invalid_date_range'}, status=400)
+        from .services.premium_reporting import daily_summary
+        values, config = daily_summary(build_scope_key(request), *dates)
+        return Response({'date_from': dates[0], 'date_to': dates[1], 'as_of': timezone.now(), **config, 'results': values})
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        response = self.daily(request)
+        if response.status_code != 200:
+            return response
+        rows = response.data.pop('results')
+        response.data['premium_seconds'] = sum(row['premium_seconds'] for row in rows)
+        response.data['gameplay_seconds'] = sum(row['gameplay_seconds'] for row in rows)
+        response.data['other_gameplay_seconds'] = sum(row['other_gameplay_seconds'] for row in rows)
+        response.data['reference_seconds'] = ((response.data['date_to'] - response.data['date_from']).days + 1) * response.data['daily_reference_minutes'] * 60
+        from collections import defaultdict
+        from .services.premium_reporting import report_window, segments
+        start, end = report_window(response.data['date_from'], response.data['date_to'])
+        distribution = defaultdict(lambda: {'seconds': 0, 'session_ids': set()})
+        for fact, period, _segment_start, _segment_end, seconds in segments(build_scope_key(request), start, end):
+            key = (period.activity_id, period.activity.name)
+            distribution[key]['seconds'] += seconds
+            distribution[key]['session_ids'].add(fact.source_schedule_id)
+        response.data['distribution'] = [
+            {'activity_id': key[0], 'activity_name': key[1], 'seconds': value['seconds'],
+             'session_count': len(value['session_ids'])}
+            for key, value in sorted(distribution.items(), key=lambda item: (-item[1]['seconds'], item[0][1]))
+        ]
+        response.data['pending_reconciliation_count'] = 0
+        response.data['coverage'] = 'complete' if not GoalCompletion.objects.filter(
+            scope_key=build_scope_key(request), started_at__isnull=True).exists() else 'partial'
+        return response
+
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        qs = History.objects.select_related('activity__category__group', 'schedule__premium_period').filter(
+            schedule__scope_key=build_scope_key(request), end_time__isnull=False).order_by('-start_time')
+        if request.query_params.get('activity_id'):
+            qs = qs.filter(activity_id=request.query_params['activity_id'])
+        if request.query_params.get('period_id'):
+            qs = qs.filter(schedule__premium_period_id=request.query_params['period_id'])
+        if request.query_params.get('origin'):
+            qs = qs.filter(schedule__execution_origin=request.query_params['origin'])
+        try:
+            limit = min(max(int(request.query_params.get('limit', 20)), 1), 100)
+            offset = max(int(request.query_params.get('offset', 0)), 0)
+        except ValueError:
+            return Response({'code': 'invalid_pagination'}, status=400)
+        page = list(qs[offset:offset + limit])
+        return Response({'count': qs.count(), 'results': [{**HistorySerializer(x).data,
+            'execution_id': x.schedule_id, 'origin': x.schedule.execution_origin,
+            'duration_seconds': int((x.end_time-x.start_time).total_seconds()),
+            'premium_period_id': x.schedule.premium_period_id} for x in page]})
+
+
+class GameplayTrackingSettingsViewSet(viewsets.GenericViewSet):
+    permission_classes = [HasAPIKey]
+
+    def list(self, request):
+        from .services.premium_reporting import settings_for
+        return Response(settings_for(build_scope_key(request)))
+
+    def partial_update(self, request, pk=None):
+        scope = build_scope_key(request)
+        with transaction.atomic():
+            obj = GameplayTrackingSettings.objects.select_for_update().filter(scope_key=scope).first()
+            expected_version = request.data.get('expected_version')
+            if expected_version is None:
+                return Response({'code': 'expected_version_required'}, status=400)
+            current_version = obj.version if obj else 0
+            if int(expected_version) != current_version:
+                return Response({'code': 'stale_settings_version'}, status=409)
+            if obj is None:
+                obj = GameplayTrackingSettings(scope_key=scope)
+            minutes = int(request.data.get('daily_reference_minutes', obj.daily_reference_minutes))
+            if not 1 <= minutes <= 1440:
+                return Response({'code': 'invalid_daily_reference'}, status=400)
+            groups = Group.objects.filter(id__in=request.data.get('group_ids', []))
+            if groups.count() != len(set(request.data.get('group_ids', []))):
+                return Response({'code': 'group_not_found'}, status=400)
+            obj.daily_reference_minutes, obj.version = minutes, current_version + 1
+            if obj.pk:
+                obj.save(update_fields=['daily_reference_minutes', 'version', 'updated_at'])
+            else:
+                obj.save()
+            obj.groups.set(groups)
+        from .services.premium_reporting import settings_for
+        return Response(settings_for(scope))
