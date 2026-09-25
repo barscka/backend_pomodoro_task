@@ -90,6 +90,13 @@ class CatalogValidationTests(SimpleTestCase):
             with self.assertRaisesRegex(Exception, 'JSON inválido'):
                 load_catalog(handle.name)
 
+    def test_rejects_external_identity_longer_than_model_limit(self):
+        catalog = minimal_catalog()
+        catalog['generations'][0]['platforms'][0]['games'][0]['key'] = 'x' * 51
+
+        with self.assertRaisesRegex(CatalogValidationError, 'no máximo 50 caracteres'):
+            validate_catalog(catalog)
+
     def test_inventory_exact_alias_possible_and_technical_files(self):
         catalog = minimal_catalog()
         games = catalog['generations'][0]['platforms'][0]['games']

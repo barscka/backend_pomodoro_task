@@ -184,6 +184,8 @@ def validate_catalog(catalog: Any) -> None:
                 jp = f'{pp}.games[{ji}]'
                 game_key = _required(game, 'key', jp, errors)
                 _non_empty(game_key, f'{jp}.key', errors)
+                if isinstance(game_key, str) and len(game_key) > 50:
+                    errors.append(f'{jp}.key: deve possuir no máximo 50 caracteres')
                 if isinstance(game_key, str) and game_key in game_keys:
                     errors.append(f'{jp}.key: chave duplicada {game_key!r}')
                 game_keys.add(game_key)
