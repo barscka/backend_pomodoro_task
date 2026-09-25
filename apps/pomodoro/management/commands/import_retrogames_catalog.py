@@ -51,13 +51,10 @@ class Command(BaseCommand):
             )
         if report.inventory:
             self.stdout.write('Inventário: ' + ', '.join(f'{key}={value}' for key, value in report.inventory.items()))
-<<<<<<< HEAD
         if report.changes:
             self.stdout.write('Detalhes:')
             for change in report.changes:
                 self.stdout.write(f'  - {change}')
-=======
->>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
         if report.warnings:
             self.stdout.write('Avisos:')
             for warning in report.warnings:
