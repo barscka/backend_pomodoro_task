@@ -95,6 +95,7 @@ def get_active_schedule(scope_key: str) -> Schedule | None:
         Schedule.objects.select_related(
             'activity__category__group',
             'queue_item__queue__group',
+            'retro_game',
         )
         .filter(scope_key=scope_key, state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING])
         .order_by('-created_at')

@@ -143,3 +143,5 @@ REST_FRAMEWORK = {
 
 # Habilitar somente depois que o cliente aceitar execuções sem queue_item_id.
 PREMIUM_DIRECT_START_ENABLED = os.getenv('PREMIUM_DIRECT_START_ENABLED', 'False') == 'True'
+# Catálogo permanece legível; a flag controla somente novos blocos diretos.
+RETROGAMES_ENABLED = os.getenv('RETROGAMES_ENABLED', 'False') == 'True'

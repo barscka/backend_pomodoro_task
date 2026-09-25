@@ -1,5 +1,3 @@
-import hashlib
-import json
 from datetime import timedelta
 
 from django.conf import settings
@@ -9,10 +7,7 @@ from django.utils import timezone
 from apps.pomodoro.models import ExecutionIdempotency, History, PremiumPeriod, Schedule
 from .activity_execution import ActivityExecutionConflict, get_active_schedule
 from .premium_periods import bounds
-
-
-def _hash(payload):
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+from .direct_execution import payload_hash
 
 
 @transaction.atomic
@@ -20,10 +15,10 @@ def start_premium(*, period_id, scope_key, duration_minutes, request_id, return_
     if not getattr(settings, 'PREMIUM_DIRECT_START_ENABLED', False):
         raise ActivityExecutionConflict('premium_direct_disabled', 'Novos inícios premium diretos ainda não estão liberados.')
     payload = {'period_id': int(period_id), 'duration_minutes': int(duration_minutes), 'return_group_id': return_group_id, 'continued_from_id': continued_from_id}
-    payload_hash = _hash(payload)
+    request_payload_hash = payload_hash(payload)
     existing_request = ExecutionIdempotency.objects.select_for_update().filter(scope_key=scope_key, request_id=request_id).first()
     if existing_request:
-        if existing_request.payload_hash != payload_hash:
+        if existing_request.payload_hash != request_payload_hash:
             raise ActivityExecutionConflict('idempotency_payload_conflict', 'A chave já foi usada com outro payload.')
         if existing_request.schedule:
             return existing_request.schedule, False
@@ -50,7 +45,7 @@ def start_premium(*, period_id, scope_key, duration_minutes, request_id, return_
                     or successor.return_group_id != return_group_id):
                 raise ActivityExecutionConflict('continuation_payload_conflict', 'A execução anterior já possui continuação com outro payload.')
             ExecutionIdempotency.objects.create(scope_key=scope_key, request_id=request_id,
-                payload_hash=payload_hash, schedule=successor, schedule_id_tombstone=successor.id)
+                payload_hash=request_payload_hash, schedule=successor, schedule_id_tombstone=successor.id)
             return successor, False
     active = get_active_schedule(scope_key)
     if active:
@@ -69,6 +64,11 @@ def start_premium(*, period_id, scope_key, duration_minutes, request_id, return_
                 return_group_id=return_group_id,
             )
     except IntegrityError:
+        replay = ExecutionIdempotency.objects.filter(
+            scope_key=scope_key, request_id=request_id
+        ).first()
+        if replay and replay.payload_hash == request_payload_hash and replay.schedule:
+            return replay.schedule, False
         active = Schedule.objects.filter(scope_key=scope_key,
             state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]).first()
         if active:
@@ -80,10 +80,10 @@ def start_premium(*, period_id, scope_key, duration_minutes, request_id, return_
         raise ActivityExecutionConflict('premium_start_conflict', 'Não foi possível iniciar por conflito de persistência.')
     History.objects.create(activity=period.activity, schedule=schedule, start_time=now)
     try:
-        ExecutionIdempotency.objects.create(scope_key=scope_key, request_id=request_id, payload_hash=payload_hash, schedule=schedule, schedule_id_tombstone=schedule.id)
+        ExecutionIdempotency.objects.create(scope_key=scope_key, request_id=request_id, payload_hash=request_payload_hash, schedule=schedule, schedule_id_tombstone=schedule.id)
     except IntegrityError:
         record = ExecutionIdempotency.objects.get(scope_key=scope_key, request_id=request_id)
-        if record.payload_hash == payload_hash and record.schedule:
+        if record.payload_hash == request_payload_hash and record.schedule:
             return record.schedule, False
         raise ActivityExecutionConflict('idempotency_payload_conflict', 'A chave já foi usada com outro payload.')
     return schedule, True

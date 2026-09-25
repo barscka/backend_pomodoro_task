@@ -8,7 +8,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework_api_key.permissions import HasAPIKey
 
-from .models import Activity, ActivityQueueItem, Category, Group, History, Schedule, PremiumPeriod, GameplayTrackingSettings, GoalCompletion
+from .models import (Activity, ActivityQueueItem, Category, Group, History, Schedule,
+                     PremiumPeriod, GameplayTrackingSettings, GoalCompletion)
 from .serializers import (
     QueueActivityListResponseSerializer,
     QueueRecreationRequestSerializer,
@@ -20,6 +21,8 @@ from .serializers import (
     GroupSerializer,
     HistorySerializer,
     PremiumPeriodSerializer, PremiumStartSerializer, PremiumContinueSerializer,
+    RetroGameSerializer, RetroGenerationSerializer, RetroPlatformSerializer,
+    RetroProgressRequestSerializer, RetroProgressSerializer,
 )
 from .services.activity_execution import (
     ActivityExecutionConflict,
@@ -47,6 +50,122 @@ class PremiumPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
     max_page_size = 100
+
+
+class RetroPagination(PageNumberPagination):
+    page_size = 30
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class RetroGenerationViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [HasAPIKey]
+    serializer_class = RetroGenerationSerializer
+
+    def get_queryset(self):
+        from .services.retro_catalog import generations
+        return generations()
+
+
+class RetroPlatformViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [HasAPIKey]
+    serializer_class = RetroPlatformSerializer
+
+    def get_queryset(self):
+        from .services.retro_catalog import platforms
+        return platforms(generation_id=self.request.query_params.get('generation_id'))
+
+
+class RetroGameViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [HasAPIKey]
+    serializer_class = RetroGameSerializer
+    pagination_class = RetroPagination
+
+    def get_queryset(self):
+        from .services.retro_catalog import games
+        return games(scope_key=build_scope_key(self.request), params=self.request.query_params)
+
+    def _serialized(self, objects, many=False):
+        from .services.retro_catalog import metrics_for
+        object_list = list(objects) if many else [objects]
+        metrics = metrics_for(game_ids=[game.id for game in object_list],
+                              scope_key=build_scope_key(self.request))
+        value = object_list if many else object_list[0]
+        return self.get_serializer(value, many=many, context={
+            **self.get_serializer_context(), 'metrics': metrics,
+        }).data
+
+    def list(self, request, *args, **kwargs):
+        page = self.paginate_queryset(self.filter_queryset(self.get_queryset()))
+        if page is not None:
+            return self.get_paginated_response(self._serialized(page, many=True))
+        return Response(self._serialized(self.get_queryset(), many=True))
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response(self._serialized(self.get_object()))
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        serializer = PremiumStartSerializer(data=request.data)
+        if not serializer.is_valid():
+            code = 'invalid_duration' if 'duration_minutes' in serializer.errors else 'invalid_request'
+            return Response({'code': code, 'detail': 'Dados de início inválidos.',
+                             'errors': serializer.errors}, status=400)
+        try:
+            from .services.retro_execution import start_retro
+            schedule, created = start_retro(
+                retro_game_id=pk, scope_key=build_scope_key(request),
+                **serializer.validated_data,
+            )
+        except ActivityExecutionConflict as exc:
+            status_by_code = {
+                'retro_game_not_found': status.HTTP_404_NOT_FOUND,
+                'retro_game_inactive': status.HTTP_422_UNPROCESSABLE_ENTITY,
+                'retrogames_disabled': status.HTTP_503_SERVICE_UNAVAILABLE,
+                'retro_hierarchy_invalid': status.HTTP_400_BAD_REQUEST,
+                'invalid_duration': status.HTTP_400_BAD_REQUEST,
+                'return_group_not_found': status.HTTP_400_BAD_REQUEST,
+            }
+            payload = {'code': exc.code, 'detail': exc.detail, **exc.payload}
+            if exc.schedule:
+                payload['active_execution'] = ActivityExecutionSerializer(
+                    exc.schedule, context={'request': request}
+                ).data
+            return Response(payload, status=status_by_code.get(exc.code, status.HTTP_409_CONFLICT))
+        return Response(ActivityExecutionSerializer(schedule, context={'request': request}).data,
+                        status=201 if created else 200)
+
+    @action(detail=True, methods=['patch'])
+    def progress(self, request, pk=None):
+        serializer = RetroProgressRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        game = self.get_object()
+        try:
+            from .services.retro_progress import RetroProgressConflict, set_progress
+            progress, _ = set_progress(retro_game=game, scope_key=build_scope_key(request),
+                                       **serializer.validated_data)
+        except RetroProgressConflict as exc:
+            return Response({'code': exc.code, 'detail': exc.detail}, status=409)
+        return Response(RetroProgressSerializer(progress).data)
+
+    @action(detail=True, methods=['get'])
+    def sessions(self, request, pk=None):
+        game = self.get_object()
+        queryset = GoalCompletion.objects.filter(
+            scope_key=build_scope_key(request), activity_id_snapshot=game.activity_id
+        ).order_by('-completed_at', '-source_schedule_id')
+        page = self.paginate_queryset(queryset)
+        rows = page if page is not None else queryset
+        data = [{
+            'execution_id': fact.source_schedule_id,
+            'started_at': fact.started_at,
+            'completed_at': fact.completed_at,
+            'duration_seconds': (fact.duration_seconds if fact.duration_seconds is not None
+                                 else fact.duration_minutes * 60),
+            'coverage': 'complete' if fact.duration_seconds is not None else 'partial',
+            'execution_origin': fact.execution_origin,
+        } for fact in rows]
+        return self.get_paginated_response(data) if page is not None else Response(data)
 
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -458,6 +577,7 @@ class ActivityExecutionViewSet(viewsets.GenericViewSet):
     queryset = Schedule.objects.select_related(
         'activity__category__group',
         'queue_item__queue__group',
+        'retro_game',
     )
 
     def retrieve(self, request, pk=None):
@@ -483,19 +603,30 @@ class ActivityExecutionViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         try:
             predecessor = self.get_queryset().get(pk=pk, scope_key=build_scope_key(request))
-            if not predecessor.premium_period_id:
-                return Response({'code': 'continuation_not_available', 'detail': 'A execução não possui período premium recuperável.'}, status=409)
-            from .services.premium_execution import start_premium
-            schedule, created = start_premium(
-                period_id=predecessor.premium_period_id, scope_key=build_scope_key(request),
-                continued_from_id=predecessor.id, **serializer.validated_data)
+            if predecessor.execution_origin == Schedule.ORIGIN_RETRO_DIRECT and predecessor.retro_game_id:
+                from .services.retro_execution import start_retro
+                schedule, created = start_retro(
+                    retro_game_id=predecessor.retro_game_id,
+                    scope_key=build_scope_key(request), continued_from_id=predecessor.id,
+                    **serializer.validated_data,
+                )
+            elif predecessor.premium_period_id:
+                from .services.premium_execution import start_premium
+                schedule, created = start_premium(
+                    period_id=predecessor.premium_period_id, scope_key=build_scope_key(request),
+                    continued_from_id=predecessor.id, **serializer.validated_data)
+            else:
+                return Response({'code': 'continuation_not_available', 'detail': 'A execução não possui contexto de continuação.'}, status=409)
         except Schedule.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         except ActivityExecutionConflict as exc:
             payload = {'code': exc.code, 'detail': exc.detail}
             if exc.schedule:
                 payload['active_execution'] = ActivityExecutionSerializer(exc.schedule, context={'request': request}).data
-            return Response(payload, status=status.HTTP_409_CONFLICT)
+            response_status = (status.HTTP_503_SERVICE_UNAVAILABLE
+                               if exc.code == 'retrogames_disabled'
+                               else status.HTTP_409_CONFLICT)
+            return Response(payload, status=response_status)
         return Response(ActivityExecutionSerializer(schedule, context={'request': request}).data,
                         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 

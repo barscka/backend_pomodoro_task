@@ -1,0 +1,105 @@
+{
+  "contract_version": "1.0.0",
+  "feature_flag": "RETROGAMES_ENABLED",
+  "generation": {
+    "id": 14,
+    "name": "4ª geração",
+    "description": "",
+    "color": "#6C5CE7",
+    "sort_order": 4
+  },
+  "platform": {
+    "id": 9,
+    "generation_id": 14,
+    "name": "Super Nintendo",
+    "slug": "snes",
+    "manufacturer": "Nintendo",
+    "release_year": 1990,
+    "sort_order": 1,
+    "active": true
+  },
+  "game": {
+    "id": 81,
+    "activity_id": 420,
+    "name": "Super Mario World",
+    "description": "",
+    "default_block_minutes": 60,
+    "generation": {"id": 14, "name": "4ª geração", "sort_order": 4},
+    "platform": {"id": 9, "name": "Super Nintendo", "slug": "snes"},
+    "tier": "essential",
+    "estimated_main_minutes": 360,
+    "play_goal": "Campanha principal",
+    "release_year": 1990,
+    "sort_order": 1,
+    "active": true,
+    "cover_url": null,
+    "status": "in_progress",
+    "progress_version": 2,
+    "played_seconds": 5400,
+    "open_estimate_seconds": 0,
+    "progress_percent": 25.0,
+    "coverage": "complete",
+    "can_start": true
+  },
+  "games_page": {
+    "count": 1,
+    "next": null,
+    "previous": null,
+    "results": ["$game"]
+  },
+  "start_request": {
+    "duration_minutes": 60,
+    "request_id": "550e8400-e29b-41d4-a716-446655440000",
+    "return_group_id": 3
+  },
+  "direct_execution": {
+    "execution_id": 99,
+    "queue_id": null,
+    "queue_item_id": null,
+    "queue_group_id": null,
+    "queue_group_name": null,
+    "execution_origin": "retro_direct",
+    "planned_duration_seconds": 3600,
+    "premium_period_id": null,
+    "retro_game_id": 81,
+    "continued_from_id": null,
+    "return_group_id": 3,
+    "version": 1
+  },
+  "continue_request": {
+    "duration_minutes": 60,
+    "request_id": "550e8400-e29b-41d4-a716-446655440001",
+    "expected_version": 2,
+    "return_group_id": 3
+  },
+  "progress_request": {"status": "completed", "expected_version": 2},
+  "progress_response": {
+    "status": "completed",
+    "started_at": "2026-09-24T18:00:00Z",
+    "completed_at": "2026-09-25T01:00:00Z",
+    "version": 3
+  },
+  "session": {
+    "execution_id": 99,
+    "started_at": "2026-09-24T18:00:00Z",
+    "completed_at": "2026-09-24T19:00:00Z",
+    "duration_seconds": 3600,
+    "coverage": "complete",
+    "execution_origin": "retro_direct"
+  },
+  "errors": [
+    "invalid_duration",
+    "retro_hierarchy_invalid",
+    "retro_game_not_found",
+    "active_execution_conflict",
+    "idempotency_payload_conflict",
+    "stale_progress_version",
+    "continuation_context_conflict",
+    "retro_game_inactive",
+    "retrogames_disabled"
+  ],
+  "privacy": {
+    "scope_key_in_requests": false,
+    "scope_key_in_responses": false
+  }
+}

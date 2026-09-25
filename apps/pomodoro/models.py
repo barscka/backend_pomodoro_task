@@ -35,11 +35,19 @@ class Group(models.Model):
     color = models.CharField(max_length=7, default='#FFFFFF')
     is_default = models.BooleanField(default=False)
     max_daily_minutes = models.PositiveIntegerField(default=0)
+    is_retro_catalog = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         verbose_name = 'Group'
         verbose_name_plural = 'Groups'
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['is_retro_catalog'],
+                condition=Q(is_retro_catalog=True),
+                name='unique_retro_catalog_group',
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -62,6 +70,7 @@ class Category(models.Model):
         related_name='categories',
         default=get_default_group_id,
     )
+    retro_sort_order = models.PositiveIntegerField(null=True, blank=True)
     
     @property
     def current_executions(self):
@@ -78,6 +87,8 @@ class Category(models.Model):
         return self.current_executions < self.max_daily_executions
     
     def clean(self):
+        if self.retro_sort_order is not None and self.group_id and not self.group.is_retro_catalog:
+            raise ValidationError({'retro_sort_order': 'A ordem retrô só pode ser usada no grupo RetroGames.'})
         if not self.pk:
             return
         """Validação para o limite de execuções"""
@@ -96,6 +107,11 @@ class Category(models.Model):
 
 
 def get_default_category_id():
+    # Migration callables import the current model even while replaying an older
+    # schema. Select only the PK so additive fields introduced later are not read.
+    existing_id = Category.objects.only('id').filter(pk=DEFAULT_CATEGORY_ID).values_list('id', flat=True).first()
+    if existing_id:
+        return existing_id
     default_group_id = Group.objects.filter(is_default=True).values_list('id', flat=True).first()
     if not default_group_id:
         default_group_id = get_default_group_id()
@@ -207,8 +223,14 @@ class Activity(models.Model):
 class Schedule(models.Model):
     ORIGIN_QUEUE = 'queue'
     ORIGIN_PREMIUM_DIRECT = 'premium_direct'
+    ORIGIN_RETRO_DIRECT = 'retro_direct'
     ORIGIN_LEGACY = 'legacy'
-    ORIGIN_CHOICES = [(ORIGIN_QUEUE, 'Queue'), (ORIGIN_PREMIUM_DIRECT, 'Premium direct'), (ORIGIN_LEGACY, 'Legacy')]
+    ORIGIN_CHOICES = [
+        (ORIGIN_QUEUE, 'Queue'),
+        (ORIGIN_PREMIUM_DIRECT, 'Premium direct'),
+        (ORIGIN_RETRO_DIRECT, 'Retro direct'),
+        (ORIGIN_LEGACY, 'Legacy'),
+    ]
     STATE_PREPARING = 'preparing'
     STATE_RUNNING = 'running'
     STATE_COMPLETED = 'completed'
@@ -257,6 +279,9 @@ class Schedule(models.Model):
     planned_duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     continued_from = models.OneToOneField('self', null=True, blank=True, on_delete=models.PROTECT, related_name='continuation')
     return_group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.PROTECT, related_name='return_schedules')
+    retro_game = models.ForeignKey(
+        'RetroGame', null=True, blank=True, on_delete=models.PROTECT, related_name='schedules'
+    )
 
     class Meta:
         ordering = ['scheduled_date']
@@ -265,6 +290,14 @@ class Schedule(models.Model):
                 fields=['scope_key'],
                 condition=Q(state__in=['preparing', 'running']) & ~Q(scope_key=''),
                 name='unique_open_schedule_per_scope',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(execution_origin='retro_direct', retro_game__isnull=False,
+                      queue_item__isnull=True, premium_period__isnull=True)
+                    | (~Q(execution_origin='retro_direct') & Q(retro_game__isnull=True))
+                ),
+                name='schedule_retro_origin_context',
             ),
         ]
 
@@ -456,7 +489,10 @@ class History(models.Model):
 
     def save(self, *args, **kwargs):
         """Atualiza o contador ao criar um novo histórico"""
-        if not self.pk and self.schedule.execution_origin != Schedule.ORIGIN_PREMIUM_DIRECT:
+        if not self.pk and self.schedule.execution_origin not in [
+            Schedule.ORIGIN_PREMIUM_DIRECT,
+            Schedule.ORIGIN_RETRO_DIRECT,
+        ]:
             self.activity.executions_today += 1
             self.activity.save()
         super().save(*args, **kwargs)
@@ -582,6 +618,112 @@ class GameplayTrackingSettings(models.Model):
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class RetroPlatform(models.Model):
+    generation = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='retro_platforms')
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, unique=True)
+    manufacturer = models.CharField(max_length=100, blank=True, default='')
+    release_year = models.PositiveIntegerField(null=True, blank=True)
+    sort_order = models.PositiveIntegerField()
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['generation__retro_sort_order', 'sort_order', 'release_year', 'name', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['generation', 'name'], name='retro_platform_generation_name_unique'),
+            models.CheckConstraint(condition=Q(sort_order__gte=1), name='retro_platform_positive_order'),
+            models.CheckConstraint(
+                condition=Q(release_year__isnull=True) | Q(release_year__range=(1970, 2100)),
+                name='retro_platform_valid_release_year',
+            ),
+        ]
+
+    def clean(self):
+        if self.generation_id and not self.generation.group.is_retro_catalog:
+            raise ValidationError({'generation': 'A geração deve pertencer ao grupo RetroGames.'})
+
+    def __str__(self):
+        return self.name
+
+
+class RetroGame(models.Model):
+    TIER_ESSENTIAL = 'essential'
+    TIER_COMPLEMENTARY = 'complementary'
+    TIER_CHOICES = [(TIER_ESSENTIAL, 'Essencial'), (TIER_COMPLEMENTARY, 'Complementar')]
+
+    activity = models.OneToOneField(Activity, on_delete=models.PROTECT, related_name='retro_game')
+    platform = models.ForeignKey(RetroPlatform, on_delete=models.PROTECT, related_name='games')
+    tier = models.CharField(max_length=16, choices=TIER_CHOICES)
+    estimated_main_minutes = models.PositiveIntegerField()
+    play_goal = models.CharField(max_length=240, blank=True, default='')
+    release_year = models.PositiveIntegerField(null=True, blank=True)
+    sort_order = models.PositiveIntegerField()
+    active = models.BooleanField(default=True)
+    cover_url = models.URLField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['platform__generation__retro_sort_order', 'platform__sort_order',
+                    'sort_order', 'release_year', 'activity__name', 'id']
+        constraints = [
+            models.CheckConstraint(condition=Q(estimated_main_minutes__gte=1), name='retro_game_positive_estimate'),
+            models.CheckConstraint(condition=Q(sort_order__gte=1), name='retro_game_positive_order'),
+            models.CheckConstraint(condition=Q(tier__in=['essential', 'complementary']), name='retro_game_valid_tier'),
+            models.CheckConstraint(
+                condition=Q(release_year__isnull=True) | Q(release_year__range=(1970, 2100)),
+                name='retro_game_valid_release_year',
+            ),
+        ]
+
+    def clean(self):
+        if self.activity_id and self.platform_id:
+            if not self.platform.generation.group.is_retro_catalog:
+                raise ValidationError({'platform': 'A plataforma deve pertencer ao grupo RetroGames.'})
+            if self.activity.category_id != self.platform.generation_id:
+                raise ValidationError('A Activity e a plataforma devem pertencer à mesma geração.')
+
+    def __str__(self):
+        return self.activity.name
+
+
+class RetroGameProgress(models.Model):
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_COMPLETED = 'completed'
+    STATUS_SKIPPED = 'skipped'
+    STATUS_CHOICES = [
+        (STATUS_IN_PROGRESS, 'Em andamento'),
+        (STATUS_COMPLETED, 'Concluído'),
+        (STATUS_SKIPPED, 'Pulado'),
+    ]
+
+    scope_key = models.CharField(max_length=64, db_index=True)
+    retro_game = models.ForeignKey(RetroGame, on_delete=models.PROTECT, related_name='progress_records')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['scope_key', 'retro_game'], name='retro_progress_scope_game_unique'),
+            models.CheckConstraint(condition=Q(version__gte=1), name='retro_progress_positive_version'),
+            models.CheckConstraint(
+                condition=Q(status__in=['in_progress', 'completed', 'skipped']),
+                name='retro_progress_valid_status',
+            ),
+            models.CheckConstraint(
+                condition=(Q(status='completed', completed_at__isnull=False)
+                           | (~Q(status='completed') & Q(completed_at__isnull=True))),
+                name='retro_progress_completion_timestamp',
+            ),
+        ]
 
 
 class GoalActivitySkip(models.Model):

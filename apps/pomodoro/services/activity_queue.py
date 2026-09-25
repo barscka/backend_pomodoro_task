@@ -211,14 +211,22 @@ def eligible_activities(*, selected_group: Group | None, include_done_today: boo
     )
     if not include_done_today:
         queryset = queryset.exclude(
-            id__in=History.objects.filter(end_time__date=today).values('activity_id')
+            id__in=History.objects.filter(
+                end_time__date=today,
+                schedule__execution_origin__in=[Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY],
+            ).values('activity_id')
         )
     if not group.is_default:
         queryset = queryset.filter(category__group=group)
     exhausted = Category.objects.annotate(
         started=Count(
             'activities__histories',
-            filter=Q(activities__histories__start_time__date=today),
+            filter=Q(
+                activities__histories__start_time__date=today,
+                activities__histories__schedule__execution_origin__in=[
+                    Schedule.ORIGIN_QUEUE, Schedule.ORIGIN_LEGACY,
+                ],
+            ),
         )
     ).filter(started__gte=F('max_daily_executions'))
     queryset = queryset.exclude(category_id__in=exhausted.values('id'))

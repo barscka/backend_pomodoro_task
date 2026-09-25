@@ -5,7 +5,8 @@ from django.http import HttpResponseNotAllowed
 from django.shortcuts import redirect
 from django.urls import path, reverse
 
-from .models import Activity, ActivityQueue, ActivityQueueItem, Category, Group, History, Schedule
+from .models import (Activity, ActivityQueue, ActivityQueueItem, Category, Group, History,
+                     Schedule, RetroGame, RetroGameProgress, RetroPlatform)
 from .models import GoalActivitySkip, GoalCompletion, WeeklyGoal, WeeklyGoalRevision, PremiumPeriod, GameplayTrackingSettings, ExecutionIdempotency
 
 
@@ -61,13 +62,13 @@ from .services.steam_import import SteamImportError, import_steam_games
 
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_default', 'color', 'max_daily_minutes')
-    list_filter = ('is_default',)
+    list_display = ('name', 'is_default', 'is_retro_catalog', 'color', 'max_daily_minutes')
+    list_filter = ('is_default', 'is_retro_catalog')
     search_fields = ('name',)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'group', 'color', 'max_daily_executions')
+    list_display = ('name', 'group', 'retro_sort_order', 'color', 'max_daily_executions')
     list_filter = ('group',)
     search_fields = ('name',)
 
@@ -143,6 +144,37 @@ class ActivityAdmin(admin.ModelAdmin):
                           starts_on=obj.premium_from, ends_on=obj.premium_until,
                           source='legacy_compat')
         reconcile_activity(obj, previous=previous)
+
+
+@admin.register(RetroPlatform)
+class RetroPlatformAdmin(admin.ModelAdmin):
+    list_display = ('name', 'generation', 'sort_order', 'release_year', 'active')
+    list_filter = ('generation', 'active')
+    search_fields = ('name', 'slug', 'manufacturer')
+    ordering = ('generation__retro_sort_order', 'sort_order', 'release_year', 'name')
+    autocomplete_fields = ('generation',)
+    list_select_related = ('generation', 'generation__group')
+
+
+@admin.register(RetroGame)
+class RetroGameAdmin(admin.ModelAdmin):
+    list_display = ('activity', 'platform', 'generation', 'tier', 'sort_order', 'active')
+    list_filter = ('platform__generation', 'platform', 'tier', 'active')
+    search_fields = ('activity__name', 'platform__name', 'play_goal')
+    autocomplete_fields = ('activity', 'platform')
+    list_select_related = ('activity', 'activity__category', 'platform', 'platform__generation')
+
+    @admin.display(ordering='platform__generation__name')
+    def generation(self, obj):
+        return obj.platform.generation
+
+
+@admin.register(RetroGameProgress)
+class RetroGameProgressAdmin(ReadOnlyGoalAdmin):
+    list_display = ('retro_game', 'status', 'version', 'started_at', 'completed_at')
+    list_filter = ('status',)
+    search_fields = ('retro_game__activity__name',)
+    list_select_related = ('retro_game', 'retro_game__activity')
 
 @admin.register(History)
 class HistoryAdmin(admin.ModelAdmin):

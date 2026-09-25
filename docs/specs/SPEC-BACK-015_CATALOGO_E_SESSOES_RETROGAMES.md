@@ -1,8 +1,8 @@
 ---
 spec_id: SPEC-BACK-015
 titulo: Catálogo, progresso e sessões diretas de RetroGames
-status: PLANNED
-fase: TO_BE
+status: IMPLEMENTED
+fase: AS_BUILT
 criado_em: 2026-09-24
 dependencias:
   - SPEC-014
@@ -449,3 +449,30 @@ migração antes do deploy. Nunca executar testes contra banco compartilhado.
 5. continuação, conclusão e recuperação do timer;
 6. contrato JSON versionado em `docs/contracts/` para consumo do Flutter;
 7. carga manual de uma geração piloto e homologação antes do catálogo completo.
+
+## 12. Estado implementado
+
+Backend concluído em 2026-09-25 com schema aditivo, carga idempotente do grupo
+`Retrogames`, Admin editorial, services separados, APIs de catálogo/progresso/sessões,
+execução direta e continuação no cronômetro compartilhado. O contrato versionado está
+em `docs/contracts/spec-015-retrogames.json`.
+
+Decisões efetivas:
+
+- `RETROGAMES_ENABLED` é `false` por padrão e bloqueia somente novos inícios e
+  continuações diretas; as consultas permanecem disponíveis durante o rollout;
+- o tempo consolidado vem de `GoalCompletion` para a mesma Activity em qualquer origem;
+  registros sem segundos usam minutos e retornam cobertura parcial;
+- a estimativa de sessão aberta é somente leitura, limitada à duração planejada, e não
+  entra no total consolidado;
+- a continuação genérica despacha entre `premium_direct` e `retro_direct` pela origem,
+  preservando os contratos Premium;
+- execuções `retro_direct` não participam das consultas de cotas, elegibilidade ou
+  eventos da fila, mas continuam gerando `History` e `GoalCompletion`;
+- o catálogo inicial não inclui ROMs nem roteiro curado; somente o grupo estável é
+  criado pela migration, e o conteúdo editorial será cadastrado pelo Admin.
+
+Validação executada em SQLite isolado: migrations desde banco vazio, 15 testes da
+SPEC-015, 6 testes da SPEC-014 e suíte completa com 174 testes aprovados (5 pulados).
+O teste dedicado de concorrência PostgreSQL foi adicionado, mas não executado porque
+as variáveis do banco descartável seguro não estavam configuradas neste ambiente.

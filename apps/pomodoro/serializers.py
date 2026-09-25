@@ -10,6 +10,9 @@ from .models import (
     History,
     Schedule,
     PremiumPeriod,
+    RetroGame,
+    RetroGameProgress,
+    RetroPlatform,
 )
 from .services.activity_queue import group_daily_metrics
 
@@ -17,7 +20,8 @@ from .services.activity_queue import group_daily_metrics
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
-        fields = ['id', 'name', 'description', 'color', 'is_default', 'max_daily_minutes']
+        fields = ['id', 'name', 'description', 'color', 'is_default', 'is_retro_catalog',
+                  'max_daily_minutes']
 
 class CategorySerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(source='group.name', read_only=True)
@@ -277,6 +281,7 @@ class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.Model
             'execution_origin',
             'planned_duration_seconds',
             'premium_period_id',
+            'retro_game_id',
             'continued_from_id',
             'return_group_id',
         ]
@@ -339,6 +344,102 @@ class PremiumStartSerializer(serializers.Serializer):
 
 class PremiumContinueSerializer(PremiumStartSerializer):
     expected_version = serializers.IntegerField(min_value=1)
+
+
+class RetroGenerationSerializer(serializers.ModelSerializer):
+    sort_order = serializers.IntegerField(source='retro_sort_order')
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'description', 'color', 'sort_order']
+
+
+class RetroPlatformSerializer(serializers.ModelSerializer):
+    generation_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = RetroPlatform
+        fields = ['id', 'generation_id', 'name', 'slug', 'manufacturer', 'release_year',
+                  'sort_order', 'active']
+
+
+class RetroGameSerializer(serializers.ModelSerializer):
+    activity_id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(source='activity.name', read_only=True)
+    description = serializers.CharField(source='activity.description', read_only=True, allow_null=True)
+    default_block_minutes = serializers.IntegerField(source='activity.duration', read_only=True)
+    generation = serializers.SerializerMethodField()
+    platform = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    progress_version = serializers.SerializerMethodField()
+    played_seconds = serializers.SerializerMethodField()
+    open_estimate_seconds = serializers.SerializerMethodField()
+    progress_percent = serializers.SerializerMethodField()
+    coverage = serializers.SerializerMethodField()
+    can_start = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RetroGame
+        fields = ['id', 'activity_id', 'name', 'description', 'default_block_minutes',
+                  'generation', 'platform', 'tier', 'estimated_main_minutes', 'play_goal',
+                  'release_year', 'sort_order', 'active', 'cover_url', 'status',
+                  'progress_version', 'played_seconds', 'open_estimate_seconds',
+                  'progress_percent', 'coverage', 'can_start']
+
+    def _metrics(self, obj):
+        return self.context.get('metrics', {}).get(obj.id, {})
+
+    def get_generation(self, obj):
+        generation = obj.platform.generation
+        return {'id': generation.id, 'name': generation.name,
+                'sort_order': generation.retro_sort_order}
+
+    def get_platform(self, obj):
+        platform = obj.platform
+        return {'id': platform.id, 'name': platform.name, 'slug': platform.slug}
+
+    def get_status(self, obj):
+        progress = self._metrics(obj).get('progress')
+        if progress:
+            return progress.status
+        if self.get_played_seconds(obj) > 0 or self.get_open_estimate_seconds(obj) > 0:
+            return 'in_progress'
+        return 'not_started'
+
+    def get_progress_version(self, obj):
+        progress = self._metrics(obj).get('progress')
+        return progress.version if progress else 0
+
+    def get_played_seconds(self, obj):
+        return self._metrics(obj).get('played_seconds', 0)
+
+    def get_open_estimate_seconds(self, obj):
+        return self._metrics(obj).get('open_estimate_seconds', 0)
+
+    def get_progress_percent(self, obj):
+        seconds = self.get_played_seconds(obj)
+        return round(seconds * 100 / (obj.estimated_main_minutes * 60), 2)
+
+    def get_coverage(self, obj):
+        return self._metrics(obj).get('coverage', 'complete')
+
+    def get_can_start(self, obj):
+        from django.conf import settings
+        return bool(getattr(settings, 'RETROGAMES_ENABLED', False) and obj.active
+                    and obj.platform.active and obj.activity.active
+                    and obj.platform.generation.group.is_retro_catalog
+                    and obj.activity.category_id == obj.platform.generation_id)
+
+
+class RetroProgressRequestSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=RetroGameProgress.STATUS_CHOICES)
+    expected_version = serializers.IntegerField(min_value=0)
+
+
+class RetroProgressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RetroGameProgress
+        fields = ['status', 'started_at', 'completed_at', 'version']
 
 
 class QueueRecreationRequestSerializer(serializers.Serializer):
