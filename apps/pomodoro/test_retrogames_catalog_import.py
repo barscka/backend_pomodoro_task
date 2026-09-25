@@ -230,7 +230,10 @@ class CatalogImportTests(TestCase):
         human = StringIO()
         call_command('import_retrogames_catalog', '--dry-run', '--catalog-file', self.catalog_file.name, stdout=human)
         self.assertIn('Gerações: criados=1', human.getvalue())
+<<<<<<< HEAD
         self.assertIn('Detalhes:', human.getvalue())
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
         output = StringIO()
         call_command('import_retrogames_catalog', '--dry-run', '--format=json', '--catalog-file', self.catalog_file.name, stdout=output)
         self.assertEqual(json.loads(output.getvalue())['games']['created'], 1)

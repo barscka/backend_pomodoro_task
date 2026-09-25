@@ -57,7 +57,10 @@ class ImportReport:
     platforms: EntityStats = field(default_factory=EntityStats)
     games: EntityStats = field(default_factory=EntityStats)
     warnings: list[str] = field(default_factory=list)
+<<<<<<< HEAD
     changes: list[str] = field(default_factory=list)
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
     inventory: dict[str, int] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -79,7 +82,10 @@ class ImportReport:
             'platforms': stats(self.platforms),
             'games': stats(self.games),
             'inventory': self.inventory,
+<<<<<<< HEAD
             'changes': self.changes,
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
             'warnings': self.warnings,
         }
 
@@ -307,8 +313,11 @@ def _plan(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport:
     group = Group.objects.filter(is_retro_catalog=True).first()
     group_changed = _changed(group, _desired_group(catalog)) if group else []
     _record(report.group, group is not None, group_changed)
+<<<<<<< HEAD
     if group_changed:
         report.changes.append(f"Grupo {group.name!r}: atualizar {', '.join(group_changed)}")
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
 
     generations = {item.name: item for item in Category.objects.filter(group=group)} if group else {}
     platforms = {item.slug: item for item in RetroPlatform.objects.select_related('generation')}
@@ -327,20 +336,26 @@ def _plan(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport:
         generation_obj = generations.get(generation['name'])
         changed = _changed(generation_obj, _desired_generation(generation, group.id)) if generation_obj and group else []
         _record(report.generations, generation_obj is not None, changed)
+<<<<<<< HEAD
         if changed:
             report.changes.append(
                 f"Geração {generation['key']!r}: atualizar {', '.join(changed)}"
             )
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
         for platform in generation['platforms']:
             catalog_slugs.add(platform['slug'])
             platform_obj = platforms.get(platform['slug'])
             desired_generation_id = generation_obj.id if generation_obj else None
             changed = _changed(platform_obj, _desired_platform(platform, desired_generation_id)) if platform_obj else []
             _record(report.platforms, platform_obj is not None, changed)
+<<<<<<< HEAD
             if changed:
                 report.changes.append(
                     f"Plataforma {platform['slug']!r}: atualizar {', '.join(changed)}"
                 )
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
             for game in platform['games']:
                 catalog_keys.add(game['key'])
                 activity = activities.get(game['key'])
@@ -350,6 +365,7 @@ def _plan(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport:
                 game_changed = _changed(retro_game, _desired_game(game, activity.id, desired_platform_id)) if retro_game else []
                 exists = activity is not None and retro_game is not None
                 _record(report.games, exists, sorted(set(activity_changed + game_changed)))
+<<<<<<< HEAD
                 if activity_changed or game_changed:
                     fields = [f'activity.{field}' for field in activity_changed]
                     fields.extend(f'retro_game.{field}' for field in game_changed)
@@ -364,6 +380,11 @@ def _plan(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport:
         + ('desativar' if deactivate_missing else 'manter ativo')
         for activity in orphan_activities
     )
+=======
+
+    orphan_activities = [activity for key, activity in activities.items() if key not in catalog_keys]
+    report.games.orphaned = len(orphan_activities)
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
     if deactivate_missing:
         report.games.deactivated = sum(
             activity.active or (hasattr(activity, 'retro_game') and activity.retro_game.active)
@@ -397,6 +418,7 @@ def _apply(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport
             conflicting_name = Group.objects.select_for_update().filter(name=catalog['group']['name']).first()
             if conflicting_name and not conflicting_name.is_retro_catalog:
                 locked_group = conflicting_name
+<<<<<<< HEAD
                 changed = _save_if_changed(locked_group, _desired_group(catalog))
                 _record(report.group, True, changed)
                 report.changes.append(
@@ -412,6 +434,16 @@ def _apply(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport
                 report.changes.append(
                     f"Grupo {locked_group.name!r}: atualizar {', '.join(changed)}"
                 )
+=======
+                locked_group.is_retro_catalog = True
+                locked_group.save(update_fields=['is_retro_catalog'])
+            else:
+                locked_group = Group.objects.create(**_desired_group(catalog))
+            report.group.created += 1
+        else:
+            changed = _save_if_changed(locked_group, _desired_group(catalog))
+            _record(report.group, True, changed)
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
 
         catalog_keys: set[str] = set()
         catalog_slugs: set[str] = set()
@@ -425,10 +457,13 @@ def _apply(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport
             else:
                 changed = _save_if_changed(generation_obj, _desired_generation(generation, locked_group.id))
                 _record(report.generations, True, changed)
+<<<<<<< HEAD
                 if changed:
                     report.changes.append(
                         f"Geração {generation['key']!r}: atualizar {', '.join(changed)}"
                     )
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
 
             for platform in generation['platforms']:
                 catalog_slugs.add(platform['slug'])
@@ -441,10 +476,13 @@ def _apply(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport
                 else:
                     changed = _save_if_changed(platform_obj, _desired_platform(platform, generation_obj.id))
                     _record(report.platforms, True, changed)
+<<<<<<< HEAD
                     if changed:
                         report.changes.append(
                             f"Plataforma {platform['slug']!r}: atualizar {', '.join(changed)}"
                         )
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
 
                 for game in platform['games']:
                     catalog_keys.add(game['key'])
@@ -475,12 +513,15 @@ def _apply(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport
                         not (activity_created or retro_created),
                         sorted(set(activity_changed + retro_changed)),
                     )
+<<<<<<< HEAD
                     if not (activity_created or retro_created) and (activity_changed or retro_changed):
                         fields = [f'activity.{field}' for field in activity_changed]
                         fields.extend(f'retro_game.{field}' for field in retro_changed)
                         report.changes.append(
                             f"Jogo {game['key']!r}: atualizar {', '.join(fields)}"
                         )
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
 
         orphan_activities = list(
             Activity.objects.select_for_update()
@@ -488,11 +529,14 @@ def _apply(catalog: dict[str, Any], *, deactivate_missing: bool) -> ImportReport
             .exclude(external_id__in=catalog_keys)
         )
         report.games.orphaned = len(orphan_activities)
+<<<<<<< HEAD
         report.changes.extend(
             f"Jogo {activity.external_id!r}: órfão; "
             + ('desativar' if deactivate_missing else 'manter ativo')
             for activity in orphan_activities
         )
+=======
+>>>>>>> 8d67d31e92eef7ef8d9dd2c3ef968ca73eddccb4
         if deactivate_missing:
             for activity in orphan_activities:
                 changed = False
