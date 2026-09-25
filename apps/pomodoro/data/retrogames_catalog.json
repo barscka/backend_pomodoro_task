@@ -1,0 +1,1671 @@
+{
+  "schema_version": 1,
+  "catalog_version": "2026-09-24",
+  "source": "plano_cronologico_retro_games.md",
+  "source_declared_total_minutes": 59460,
+  "editorial_notes": [
+    "O resumo da fonte declara 991 h, mas as linhas individuais somam 1001 h.",
+    "Paper Mario, Advance Wars e Dragon Quest VII usam metas de amostra explicitamente definidas no planejamento.",
+    "Link's Awakening e Link's Awakening DX permanecem ativos; o planejamento orienta escolher apenas uma versão."
+  ],
+  "total_estimated_minutes": 60060,
+  "group": {
+    "name": "Retrogames",
+    "description": "Planejamento cronológico de jogos retrô",
+    "color": "#6C5CE7"
+  },
+  "generations": [
+    {
+      "key": "generation-2",
+      "name": "2ª geração",
+      "description": "2ª geração (1977–1983)",
+      "color": "#6C5CE7",
+      "sort_order": 2,
+      "platforms": [
+        {
+          "slug": "atari-2600",
+          "name": "Atari 2600",
+          "manufacturer": "Atari",
+          "release_year": 1977,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "atari-2600-space-invaders",
+              "name": "Space Invaders",
+              "release_year": 1980,
+              "tier": "essential",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "10 partidas e superar o próprio recorde",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "atari-2600-pitfall",
+              "name": "Pitfall!",
+              "release_year": 1982,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Explorar até dominar a movimentação; tentar completar",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "atari-2600-asteroids",
+              "name": "Asteroids",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "10 partidas",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "atari-2600-ms-pac-man",
+              "name": "Ms. Pac-Man",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "10 partidas",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "atari-2600-pitfall-ii-lost-caverns",
+              "name": "Pitfall II: Lost Caverns",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Explorar e chegar o mais longe possível",
+              "sort_order": 5,
+              "active": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "generation-3",
+      "name": "3ª geração",
+      "description": "3ª geração (1983–1990)",
+      "color": "#6C5CE7",
+      "sort_order": 3,
+      "platforms": [
+        {
+          "slug": "nes",
+          "name": "Nintendo Entertainment System / Famicom (FC)",
+          "manufacturer": "Nintendo",
+          "release_year": 1983,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "nes-super-mario-bros",
+              "name": "Super Mario Bros.",
+              "release_year": 1985,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "nes-the-legend-of-zelda",
+              "name": "The Legend of Zelda",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "nes-castlevania",
+              "name": "Castlevania",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "nes-mega-man-2",
+              "name": "Mega Man 2",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "nes-contra",
+              "name": "Contra",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "nes-metroid",
+              "name": "Metroid",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 420,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 6,
+              "active": true
+            },
+            {
+              "key": "nes-ninja-gaiden",
+              "name": "Ninja Gaiden",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 7,
+              "active": true
+            },
+            {
+              "key": "nes-super-mario-bros-3",
+              "name": "Super Mario Bros. 3",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 300,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 8,
+              "active": true
+            },
+            {
+              "key": "nes-kirbys-adventure",
+              "name": "Kirby's Adventure",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 9,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "master-system",
+          "name": "Sega Master System",
+          "manufacturer": "Sega",
+          "release_year": 1985,
+          "sort_order": 2,
+          "active": true,
+          "games": [
+            {
+              "key": "master-system-alex-kidd-in-miracle-world",
+              "name": "Alex Kidd in Miracle World",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "master-system-phantasy-star",
+              "name": "Phantasy Star",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 720,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "master-system-sonic-the-hedgehog",
+              "name": "Sonic the Hedgehog",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "atari-7800",
+          "name": "Atari 7800",
+          "manufacturer": "Atari",
+          "release_year": 1986,
+          "sort_order": 3,
+          "active": true,
+          "games": [
+            {
+              "key": "atari-7800-food-fight",
+              "name": "Food Fight",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "10 partidas",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "atari-7800-asteroids",
+              "name": "Asteroids",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "10 partidas",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "atari-7800-ms-pac-man",
+              "name": "Ms. Pac-Man",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "10 partidas",
+              "sort_order": 3,
+              "active": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "generation-4",
+      "name": "4ª geração",
+      "description": "4ª geração (1987–1996)",
+      "color": "#6C5CE7",
+      "sort_order": 4,
+      "platforms": [
+        {
+          "slug": "pc-engine",
+          "name": "PC Engine / TurboGrafx-16",
+          "manufacturer": "NEC",
+          "release_year": 1987,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "pc-engine-bonks-adventure",
+              "name": "Bonk's Adventure",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "pc-engine-r-type",
+              "name": "R-Type",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "pc-engine-splatterhouse",
+              "name": "Splatterhouse",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "mega-drive",
+          "name": "Mega Drive / Genesis",
+          "manufacturer": "Sega",
+          "release_year": 1988,
+          "sort_order": 2,
+          "active": true,
+          "games": [
+            {
+              "key": "mega-drive-sonic-the-hedgehog-2",
+              "name": "Sonic the Hedgehog 2",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "mega-drive-streets-of-rage-2",
+              "name": "Streets of Rage 2",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "mega-drive-gunstar-heroes",
+              "name": "Gunstar Heroes",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "mega-drive-castlevania-bloodlines",
+              "name": "Castlevania: Bloodlines",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "mega-drive-contra-hard-corps",
+              "name": "Contra: Hard Corps",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "mega-drive-shinobi-iii",
+              "name": "Shinobi III",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 6,
+              "active": true,
+              "aliases": [
+                "Shinobi III - Return of the Ninja Master"
+              ]
+            },
+            {
+              "key": "mega-drive-phantasy-star-iv",
+              "name": "Phantasy Star IV",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1080,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 7,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "game-gear",
+          "name": "Game Gear",
+          "manufacturer": "Sega",
+          "release_year": 1990,
+          "sort_order": 3,
+          "active": true,
+          "games": [
+            {
+              "key": "game-gear-sonic-chaos",
+              "name": "Sonic Chaos",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "game-gear-shining-force-the-sword-of-hajya",
+              "name": "Shining Force: The Sword of Hajya",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "Shining Force II - The Sword of Hajya"
+              ]
+            },
+            {
+              "key": "game-gear-gunstar-heroes",
+              "name": "Gunstar Heroes",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "snes",
+          "name": "Super Nintendo / Super Famicom",
+          "manufacturer": "Nintendo",
+          "release_year": 1990,
+          "sort_order": 4,
+          "active": true,
+          "games": [
+            {
+              "key": "snes-super-mario-world",
+              "name": "Super Mario World",
+              "release_year": 1990,
+              "tier": "essential",
+              "estimated_main_minutes": 360,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "snes-the-legend-of-zelda-a-link-to-the-past",
+              "name": "The Legend of Zelda: A Link to the Past",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 900,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "Legend of Zelda, The - A Link to the Past"
+              ]
+            },
+            {
+              "key": "snes-super-metroid",
+              "name": "Super Metroid",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "snes-donkey-kong-country-2",
+              "name": "Donkey Kong Country 2",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 360,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "snes-super-castlevania-iv",
+              "name": "Super Castlevania IV",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "snes-mega-man-x",
+              "name": "Mega Man X",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 6,
+              "active": true
+            },
+            {
+              "key": "snes-chrono-trigger",
+              "name": "Chrono Trigger",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1380,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 7,
+              "active": true
+            },
+            {
+              "key": "snes-f-zero",
+              "name": "F-Zero",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Campanha principal",
+              "sort_order": 8,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "game-boy",
+          "name": "Game Boy",
+          "manufacturer": "Nintendo",
+          "release_year": 1989,
+          "sort_order": 5,
+          "active": true,
+          "games": [
+            {
+              "key": "game-boy-tetris",
+              "name": "Tetris",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "game-boy-super-mario-land-2",
+              "name": "Super Mario Land 2",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "Super Mario Land 2 - 6 Golden Coins"
+              ]
+            },
+            {
+              "key": "game-boy-the-legend-of-zelda-links-awakening",
+              "name": "The Legend of Zelda: Link's Awakening",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 900,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true,
+              "aliases": [
+                "Legend of Zelda, The - Link’s Awakening"
+              ]
+            },
+            {
+              "key": "game-boy-donkey-kong-1994",
+              "name": "Donkey Kong (1994)",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 300,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 4,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "neo-geo",
+          "name": "Neo Geo",
+          "manufacturer": "SNK",
+          "release_year": 1990,
+          "sort_order": 6,
+          "active": true,
+          "games": [
+            {
+              "key": "neo-geo-metal-slug",
+              "name": "Metal Slug",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Campanha",
+              "sort_order": 1,
+              "active": true,
+              "aliases": [
+                "mslug"
+              ]
+            },
+            {
+              "key": "neo-geo-the-king-of-fighters-98",
+              "name": "The King of Fighters '98",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Arcade com 3 equipes",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "neo-geo-garou-mark-of-the-wolves",
+              "name": "Garou: Mark of the Wolves",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Arcade com 3 lutadores",
+              "sort_order": 3,
+              "active": true,
+              "aliases": [
+                "garou"
+              ]
+            },
+            {
+              "key": "neo-geo-samurai-shodown-ii",
+              "name": "Samurai Shodown II",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Arcade com 3 lutadores",
+              "sort_order": 4,
+              "active": true,
+              "aliases": [
+                "samsho2"
+              ]
+            },
+            {
+              "key": "neo-geo-blazing-star",
+              "name": "Blazing Star",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Campanha",
+              "sort_order": 5,
+              "active": true,
+              "aliases": [
+                "blazstar"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "generation-5",
+      "name": "5ª geração",
+      "description": "5ª geração (1993–2001)",
+      "color": "#6C5CE7",
+      "sort_order": 5,
+      "platforms": [
+        {
+          "slug": "sega-saturn",
+          "name": "Sega Saturn",
+          "manufacturer": "Sega",
+          "release_year": 1994,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "sega-saturn-panzer-dragoon",
+              "name": "Panzer Dragoon",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "sega-saturn-nights-into-dreams",
+              "name": "NiGHTS into Dreams",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 360,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "sega-saturn-clockwork-knight-2",
+              "name": "Clockwork Knight 2",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "playstation",
+          "name": "PlayStation",
+          "manufacturer": "Sony",
+          "release_year": 1994,
+          "sort_order": 2,
+          "active": true,
+          "games": [
+            {
+              "key": "playstation-castlevania-symphony-of-the-night",
+              "name": "Castlevania: Symphony of the Night",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 600,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "playstation-resident-evil-3-nemesis",
+              "name": "Resident Evil 3: Nemesis",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 420,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "playstation-metal-gear-solid",
+              "name": "Metal Gear Solid",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 720,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "playstation-crash-bandicoot-3-warped",
+              "name": "Crash Bandicoot 3: Warped",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "playstation-vagrant-story",
+              "name": "Vagrant Story",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1500,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "playstation-tekken-3",
+              "name": "Tekken 3",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Arcade com 5 personagens",
+              "sort_order": 6,
+              "active": true
+            },
+            {
+              "key": "playstation-gran-turismo",
+              "name": "Gran Turismo",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Licenças iniciais + uma série",
+              "sort_order": 7,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "nintendo-64",
+          "name": "Nintendo 64",
+          "manufacturer": "Nintendo",
+          "release_year": 1996,
+          "sort_order": 3,
+          "active": true,
+          "games": [
+            {
+              "key": "nintendo-64-super-mario-64",
+              "name": "Super Mario 64",
+              "release_year": 1996,
+              "tier": "essential",
+              "estimated_main_minutes": 720,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "nintendo-64-the-legend-of-zelda-ocarina-of-time",
+              "name": "The Legend of Zelda: Ocarina of Time",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 1620,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "Legend of Zelda, The - Ocarina of Time",
+                "Legend of Zelda, The - Ocarina of Time 3D"
+              ]
+            },
+            {
+              "key": "nintendo-64-star-fox-64",
+              "name": "Star Fox 64",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "nintendo-64-banjo-tooie",
+              "name": "Banjo-Tooie",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1020,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "nintendo-64-paper-mario",
+              "name": "Paper Mario",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 420,
+              "default_block_minutes": 60,
+              "play_goal": "Amostra inicial da campanha",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "nintendo-64-f-zero-x",
+              "name": "F-Zero X",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Campanha principal",
+              "sort_order": 6,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "game-boy-color",
+          "name": "Game Boy Color",
+          "manufacturer": "Nintendo",
+          "release_year": 1998,
+          "sort_order": 4,
+          "active": true,
+          "games": [
+            {
+              "key": "game-boy-color-the-legend-of-zelda-links-awakening-dx",
+              "name": "The Legend of Zelda: Link's Awakening DX",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 900,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true,
+              "aliases": [
+                "Legend of Zelda, The - Link’s Awakening DX"
+              ]
+            },
+            {
+              "key": "game-boy-color-pokemon-crystal",
+              "name": "Pokémon Crystal",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 1800,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "Pokemon - Crystal Version",
+                "Pokemon-Crystal Version"
+              ]
+            }
+          ]
+        },
+        {
+          "slug": "neo-geo-pocket-color",
+          "name": "Neo Geo Pocket / Color",
+          "manufacturer": "SNK",
+          "release_year": 1998,
+          "sort_order": 5,
+          "active": true,
+          "games": [
+            {
+              "key": "neo-geo-pocket-color-sonic-the-hedgehog-pocket-adventure",
+              "name": "Sonic the Hedgehog: Pocket Adventure",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 1,
+              "active": true,
+              "aliases": [
+                "Sonic the Hedgehog - Pocket Adventure",
+                "Sonic Pocket Adventure"
+              ]
+            },
+            {
+              "key": "neo-geo-pocket-color-snk-vs-capcom-the-match-of-the-millennium",
+              "name": "SNK vs. Capcom: The Match of the Millennium",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Arcade com 4 lutadores",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "neo-geo-pocket-color-metal-slug-1st-mission",
+              "name": "Metal Slug: 1st Mission",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 3,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "wonderswan",
+          "name": "WonderSwan",
+          "manufacturer": "Bandai",
+          "release_year": 1999,
+          "sort_order": 6,
+          "active": true,
+          "games": [
+            {
+              "key": "wonderswan-dicing-knight-traducao-em-ingles",
+              "name": "Dicing Knight. (tradução em inglês)",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "wonderswan-digimon-anode-tamer-cathode-tamer",
+              "name": "Digimon: Anode Tamer & Cathode Tamer",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Amostra inicial da campanha",
+              "sort_order": 2,
+              "active": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "generation-6",
+      "name": "6ª geração",
+      "description": "6ª geração (1998–2006)",
+      "color": "#6C5CE7",
+      "sort_order": 6,
+      "platforms": [
+        {
+          "slug": "dreamcast",
+          "name": "Dreamcast",
+          "manufacturer": "Sega",
+          "release_year": 1998,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "dreamcast-sonic-adventure-2",
+              "name": "Sonic Adventure 2",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 1080,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha Hero + Dark",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "dreamcast-soulcalibur",
+              "name": "SoulCalibur",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Arcade com 4 lutadores",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "SoulCalibur"
+              ]
+            },
+            {
+              "key": "dreamcast-crazy-taxi-2",
+              "name": "Crazy Taxi 2",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Completar Crazy Pyramid e sessões arcade",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "dreamcast-ikaruga",
+              "name": "Ikaruga",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 60,
+              "default_block_minutes": 30,
+              "play_goal": "Uma campanha",
+              "sort_order": 4,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "game-boy-advance",
+          "name": "Game Boy Advance",
+          "manufacturer": "Nintendo",
+          "release_year": 2001,
+          "sort_order": 2,
+          "active": true,
+          "games": [
+            {
+              "key": "game-boy-advance-metroid-fusion",
+              "name": "Metroid Fusion",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 300,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "game-boy-advance-castlevania-aria-of-sorrow",
+              "name": "Castlevania: Aria of Sorrow",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "game-boy-advance-golden-sun",
+              "name": "Golden Sun",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 1320,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "game-boy-advance-pokemon-emerald",
+              "name": "Pokémon Emerald",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1800,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 4,
+              "active": true,
+              "aliases": [
+                "Pokemon Emerald Version"
+              ]
+            },
+            {
+              "key": "game-boy-advance-warioware-inc-mega-microgame",
+              "name": "WarioWare, Inc.: Mega Microgame$!",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 120,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 5,
+              "active": true,
+              "aliases": [
+                "Wario Ware Inc"
+              ]
+            },
+            {
+              "key": "game-boy-advance-advance-wars",
+              "name": "Advance Wars",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 300,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 6,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "playstation-2",
+          "name": "PlayStation 2",
+          "manufacturer": "Sony",
+          "release_year": 2000,
+          "sort_order": 3,
+          "active": true,
+          "games": [
+            {
+              "key": "playstation-2-god-of-war",
+              "name": "God of War",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 540,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "playstation-2-need-for-speed-underground",
+              "name": "Need for Speed: Underground",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 840,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "playstation-2-ssx-3",
+              "name": "SSX 3",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Conquistar um pico",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "playstation-2-tekken-5",
+              "name": "Tekken 5",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Story/Arcade com 5 personagens",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "playstation-2-gran-turismo-4",
+              "name": "Gran Turismo 4",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Licenças iniciais + primeiras séries",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "playstation-2-call-of-duty-2-big-red-one",
+              "name": "Call of Duty 2: Big Red One",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 300,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 6,
+              "active": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "generation-7",
+      "name": "7ª geração",
+      "description": "7ª geração (2004–2013)",
+      "color": "#6C5CE7",
+      "sort_order": 7,
+      "platforms": [
+        {
+          "slug": "nintendo-ds",
+          "name": "Nintendo DS",
+          "manufacturer": "Nintendo",
+          "release_year": 2004,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "nintendo-ds-castlevania-dawn-of-sorrow",
+              "name": "Castlevania: Dawn of Sorrow",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 600,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "nintendo-ds-the-legend-of-zelda-phantom-hourglass",
+              "name": "The Legend of Zelda: Phantom Hourglass",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 1020,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "Legend of Zelda, The - Phantom Hourglass"
+              ]
+            },
+            {
+              "key": "nintendo-ds-pokemon-platinum",
+              "name": "Pokémon Platinum",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 2100,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true,
+              "aliases": [
+                "Pokemon - Platinum Version"
+              ]
+            },
+            {
+              "key": "nintendo-ds-mario-kart-ds",
+              "name": "Mario Kart DS",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Todas as copas em 50cc e 100cc",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "nintendo-ds-super-mario-64-ds",
+              "name": "Super Mario 64 DS",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 720,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha básica",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "nintendo-ds-cooking-mama",
+              "name": "Cooking Mama",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Uma boa amostra das receitas",
+              "sort_order": 6,
+              "active": true
+            }
+          ]
+        },
+        {
+          "slug": "psp",
+          "name": "PSP",
+          "manufacturer": "Sony",
+          "release_year": 2004,
+          "sort_order": 2,
+          "active": true,
+          "games": [
+            {
+              "key": "psp-god-of-war-chains-of-olympus",
+              "name": "God of War: Chains of Olympus",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 360,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "psp-final-fantasy-tactics-the-war-of-the-lions",
+              "name": "Final Fantasy Tactics: The War of the Lions",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 2400,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 2,
+              "active": true
+            },
+            {
+              "key": "psp-grand-theft-auto-vice-city-stories",
+              "name": "Grand Theft Auto: Vice City Stories",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 960,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 3,
+              "active": true,
+              "aliases": [
+                "GTA Vice City Stories"
+              ]
+            },
+            {
+              "key": "psp-mega-man-maverick-hunter-x",
+              "name": "Mega Man: Maverick Hunter X",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 300,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "psp-ace-combat-x-skies-of-deception",
+              "name": "Ace Combat X: Skies of Deception",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 540,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "psp-burnout-legends",
+              "name": "Burnout Legends",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 300,
+              "default_block_minutes": 60,
+              "play_goal": "Completar uma classe de eventos",
+              "sort_order": 6,
+              "active": true
+            },
+            {
+              "key": "psp-tekken-dark-resurrection",
+              "name": "Tekken: Dark Resurrection",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 180,
+              "default_block_minutes": 60,
+              "play_goal": "Arcade com 5 personagens",
+              "sort_order": 7,
+              "active": true
+            },
+            {
+              "key": "psp-monster-hunter-portable-3rd",
+              "name": "Monster Hunter Portable 3rd",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 240,
+              "default_block_minutes": 60,
+              "play_goal": "Tutorial + primeiras caçadas",
+              "sort_order": 8,
+              "active": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "generation-8",
+      "name": "8ª geração",
+      "description": "8ª geração (2011–2020)",
+      "color": "#6C5CE7",
+      "sort_order": 8,
+      "platforms": [
+        {
+          "slug": "nintendo-3ds",
+          "name": "Nintendo 3DS",
+          "manufacturer": "Nintendo",
+          "release_year": 2011,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "nintendo-3ds-super-mario-3d-land",
+              "name": "Super Mario 3D Land",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 420,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "nintendo-3ds-the-legend-of-zelda-a-link-between-worlds",
+              "name": "The Legend of Zelda: A Link Between Worlds",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 960,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "Legend of Zelda, The - A Link Between Worlds"
+              ]
+            },
+            {
+              "key": "nintendo-3ds-pokemon-x",
+              "name": "Pokémon X",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 1860,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "nintendo-3ds-mario-kart-7",
+              "name": "Mario Kart 7",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 480,
+              "default_block_minutes": 60,
+              "play_goal": "Todas as copas em 50cc e 100cc",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "nintendo-3ds-castlevania-lords-of-shadow-mirror-of-fate",
+              "name": "Castlevania: Lords of Shadow – Mirror of Fate",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 600,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "nintendo-3ds-dragon-quest-vii",
+              "name": "Dragon Quest VII",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 2040,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 6,
+              "active": true,
+              "aliases": [
+                "Dragon Quest VII - Eden no Senshi-tachi"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "generation-current",
+      "name": "Era atual / híbrida",
+      "description": "era atual / híbrida (2017–)",
+      "color": "#6C5CE7",
+      "sort_order": 9,
+      "platforms": [
+        {
+          "slug": "nintendo-switch",
+          "name": "Nintendo Switch",
+          "manufacturer": "Nintendo",
+          "release_year": 2017,
+          "sort_order": 1,
+          "active": true,
+          "games": [
+            {
+              "key": "nintendo-switch-super-mario-bros-wonder",
+              "name": "Super Mario Bros. Wonder",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 600,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 1,
+              "active": true
+            },
+            {
+              "key": "nintendo-switch-the-legend-of-zelda-breath-of-the-wild",
+              "name": "The Legend of Zelda: Breath of the Wild",
+              "release_year": 2017,
+              "tier": "essential",
+              "estimated_main_minutes": 3000,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha principal",
+              "sort_order": 2,
+              "active": true,
+              "aliases": [
+                "The Legend of Zelda Breath of the Wild"
+              ]
+            },
+            {
+              "key": "nintendo-switch-hollow-knight",
+              "name": "Hollow Knight",
+              "release_year": null,
+              "tier": "essential",
+              "estimated_main_minutes": 1620,
+              "default_block_minutes": 60,
+              "play_goal": "Final principal",
+              "sort_order": 3,
+              "active": true
+            },
+            {
+              "key": "nintendo-switch-prince-of-persia-the-lost-crown",
+              "name": "Prince of Persia: The Lost Crown",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1020,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 4,
+              "active": true
+            },
+            {
+              "key": "nintendo-switch-cuphead",
+              "name": "Cuphead",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 660,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 5,
+              "active": true
+            },
+            {
+              "key": "nintendo-switch-monster-hunter-rise",
+              "name": "Monster Hunter Rise",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1500,
+              "default_block_minutes": 60,
+              "play_goal": "História da vila + início do hub",
+              "sort_order": 6,
+              "active": true
+            },
+            {
+              "key": "nintendo-switch-diablo-iii",
+              "name": "Diablo III",
+              "release_year": null,
+              "tier": "complementary",
+              "estimated_main_minutes": 1080,
+              "default_block_minutes": 60,
+              "play_goal": "Campanha",
+              "sort_order": 7,
+              "active": true,
+              "aliases": [
+                "Diablo III Eternal Collection",
+                "Diablo 3"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

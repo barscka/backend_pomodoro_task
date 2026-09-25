@@ -206,6 +206,28 @@ cadastrada, um administrador com permissões de adicionar e alterar atividades p
 `POST`, identifica jogos pelo AppID e não sobrescreve duração, prioridade, estado ou dados de
 execução em sincronizações posteriores.
 
+## Importação do catálogo RetroGames
+
+O roteiro editorial inicial está versionado em
+`apps/pomodoro/data/retrogames_catalog.json`. Valide e revise o plano antes de gravar:
+
+```bash
+python manage.py import_retrogames_catalog --dry-run
+python manage.py import_retrogames_catalog --dry-run --format=json
+python manage.py import_retrogames_catalog
+```
+
+A comparação opcional com o inventário local não faz parte do deploy:
+
+```bash
+python manage.py import_retrogames_catalog --dry-run \
+  --inventory-file /caminho/emuladores_e_jogos.txt
+```
+
+A carga é atômica e idempotente. Itens removidos da fonte são apenas reportados como
+órfãos; `--deactivate-missing` desativa somente jogos cuja identidade prova que foram
+criados pelo catálogo. Veja `docs/specs/SPEC-BACK-016_IMPORTACAO_CATALOGO_RETROGAMES.md`.
+
 Detalhes técnicos e operacionais estão em
 [`docs/specs/IMPORTACAO_ATIVIDADES_STEAM_ADMIN.md`](docs/specs/IMPORTACAO_ATIVIDADES_STEAM_ADMIN.md).
 
