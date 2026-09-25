@@ -945,7 +945,7 @@
           "active": true,
           "games": [
             {
-              "key": "game-boy-color-the-legend-of-zelda-links-awakening-dx",
+              "key": "game-boy-color-zelda-links-awakening-dx",
               "name": "The Legend of Zelda: Link's Awakening DX",
               "release_year": null,
               "tier": "essential",
@@ -984,7 +984,7 @@
           "active": true,
           "games": [
             {
-              "key": "neo-geo-pocket-color-sonic-the-hedgehog-pocket-adventure",
+              "key": "ngpc-sonic-pocket-adventure",
               "name": "Sonic the Hedgehog: Pocket Adventure",
               "release_year": null,
               "tier": "essential",
@@ -999,7 +999,7 @@
               ]
             },
             {
-              "key": "neo-geo-pocket-color-snk-vs-capcom-the-match-of-the-millennium",
+              "key": "ngpc-snk-vs-capcom-match-of-the-millennium",
               "name": "SNK vs. Capcom: The Match of the Millennium",
               "release_year": null,
               "tier": "essential",
@@ -1499,7 +1499,7 @@
               "active": true
             },
             {
-              "key": "nintendo-3ds-the-legend-of-zelda-a-link-between-worlds",
+              "key": "nintendo-3ds-zelda-a-link-between-worlds",
               "name": "The Legend of Zelda: A Link Between Worlds",
               "release_year": null,
               "tier": "essential",
@@ -1535,7 +1535,7 @@
               "active": true
             },
             {
-              "key": "nintendo-3ds-castlevania-lords-of-shadow-mirror-of-fate",
+              "key": "nintendo-3ds-castlevania-mirror-of-fate",
               "name": "Castlevania: Lords of Shadow – Mirror of Fate",
               "release_year": null,
               "tier": "complementary",
@@ -1590,7 +1590,7 @@
               "active": true
             },
             {
-              "key": "nintendo-switch-the-legend-of-zelda-breath-of-the-wild",
+              "key": "nintendo-switch-zelda-breath-of-the-wild",
               "name": "The Legend of Zelda: Breath of the Wild",
               "release_year": 2017,
               "tier": "essential",
@@ -1668,4 +1668,3 @@
     }
   ]
 }
-
