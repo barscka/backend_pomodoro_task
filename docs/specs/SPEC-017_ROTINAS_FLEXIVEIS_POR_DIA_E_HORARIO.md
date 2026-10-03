@@ -1,6 +1,6 @@
 # SPEC-017 — Rotinas flexíveis por dia e horário
 
-Data: 2026-10-03. Status: proposta funcional para backend e Flutter; não implementada.
+Data: 2026-10-03. Status: backend implementado e validado em ambiente isolado; Flutter e implantação pendentes.
 
 ## 1. Direção do produto
 
@@ -176,7 +176,7 @@ As 6h casuais semanais aparecem como disponibilidade interrompível, não como m
 6h jogadas. Estimativa aberta aparece separada das horas confirmadas. Dias sem plano,
 plano suspenso e gameplay zero são situações diferentes.
 
-Oferecer futuramente “Usar rotina como referência” no acompanhamento Premium:
+Disponível no backend por escolha explícita “Usar rotina como referência” no acompanhamento Premium:
 comparar com a soma das janelas no intervalo, sem multiplicar pelo número de jogos.
 Manter como padrão a referência atual de 5h/dia até escolha explícita. Para referência
 por rotina, devolver separadamente capacidade geral e interrompível; não misturar
@@ -229,7 +229,7 @@ Complemento de layout e seleção no bloco: ver seção 12, incluída após refe
 visual e orientação adicionais do usuário. Essa seção detalha a composição da
 agenda e substitui a grade de sete dias como apresentação inicial no desktop.
 
-Modelo proposto, a detalhar em especificação de implementação:
+Modelo implementado no backend; decisões detalhadas no contrato da seção 13:
 
 - RoutinePlan: scope_key, timezone e identificação da rotina ativa.
 - RoutineRevision: vigência prospectiva e versão para edição concorrente.
@@ -239,7 +239,7 @@ Modelo proposto, a detalhar em especificação de implementação:
 - ActivityRoutinePreference: atividade, scope_key e características conhecidas do
   modo de jogo; não expor preferências de outra chave de API.
 
-API futura: CRUD versionado de plano/revisão, edição de exceções, agenda expandida
+API backend: plano versionado de plano/revisão, edição de exceções, agenda expandida
 por intervalo, contexto atual e leitura de adequação/recomendações. Calcular no
 backend, com payloads comuns a mobile/desktop. GET não cria rotinas, expira itens,
 conclui sessões nem altera fila. Reutilizar escopo por Authorization; não criar login.
@@ -258,7 +258,7 @@ Ordem proposta:
 Não implementar jobs/automação para forçar o cumprimento da agenda. Integração com
 calendários externos e detecção automática do jogo continuam fora do escopo.
 
-## 10. Critérios de aceite para a futura implementação
+## 10. Critérios de aceite
 
 - Modelo inicial produz 4h úteis/dia, 11h por dia de fim de semana e 42h semanais,
   com 6h explicitamente interrompíveis. Gaps de 12h–13h e 18h30–19h continuam livres.
@@ -283,15 +283,15 @@ Janelas genéricas não significam foco intenso. Preferências restringem recome
 não escolha. O plano inicial será editável; nenhum horário foi cadastrado em banco.
 
 Padrões usados: personal-python-api, personal-flutter e personal-dev-workflow.
-Task somente documental; fórmulas e coerência do plano verificadas, sem testes de
-aplicação nem alteração de backend/Flutter executável.
+O planejamento inicial foi documental. A implementação backend e suas validações
+estão registradas na seção 13; Flutter não foi alterado.
 
 ## 12. Referência visual e escolha de atividade no bloco de gameplay
 
 Atualização de 2026-10-03: o usuário forneceu referência visual de uma tela escura
 com navegação lateral, dois quadros de rotina, contexto atual à direita e resumo
 semanal abaixo. Solicitou escolher, no horário de gameplay, um Premium ou a próxima
-atividade aleatória/de pulados dos grupos. Esta é uma evolução do plano, sem código.
+atividade aleatória/de pulados dos grupos. Esse complemento iniciou como planejamento; o backend está entregue na seção 13.
 
 ### Composição desktop
 
@@ -385,3 +385,36 @@ as três colunas do desktop nem acrescentar uma sexta aba à navegação atual.
 - Cobrir troca do item entre prévia e início, Premium vencendo antes do bloco,
   revisão bloqueada, concorrência entre dispositivos, contexto de retorno e fonte
   incompatível com janela casual.
+
+
+## 13. Entrega backend — 2026-10-03
+
+Implementados plano por escopo, revisões prospectivas, blocos estáveis, exceções,
+suspensão civil, agenda/contexto, classificação opcional, recomendação determinística,
+seleção Premium/fila por ocorrência, prévia assinada somente leitura e início explícito
+pelos serviços existentes. Resumo cruza sessões confirmadas com intervalos civis;
+referência Premium por rotina é opt-in, sem substituir 300 minutos/dia por padrão.
+
+Contrato fechado e decisões: [SPEC-017 API v1](../contracts/spec-017-routines.md).
+Fixtures: [respostas versionadas](../contracts/spec-017-routines.json).
+Postman atualizado com pasta Rotinas flexíveis (SPEC-017).
+Migration aditiva 0021, sem carga de rotina. O modelo inicial só existe após POST
+explícito; GETs não criam filas, não apresentam itens e não reconciliam execuções.
+
+Versionamento global serializa revisão, ajuste, suspensão e seleção; classificação
+usa versão própria por atividade/escopo. Primeira vigência começa hoje/futuro;
+revisões seguintes começam amanhã ou após a última revisão futura. Não editamos
+revisões publicadas. IDs estáveis podem ser mantidos nas revisões seguintes.
+A suspensão cobre o dia civil inteiro, incluindo a madrugada da ocorrência anterior.
+O resumo civil e a capacidade nominal por dia de origem são campos distintos.
+
+Validações e comandos reproduzíveis no
+[handoff da entrega](../handoffs/06_handoff_rotinas_flexiveis.md).
+Testes incluem seção 12, consulta sem mutações, fila ausente/revisão, Premium
+vencido, conflito de versão/prévia, madrugada e concorrência PostgreSQL descartável.
+Nenhum banco real, migration real, carga editorial ou flag de ambiente foi alterado.
+
+Ainda não entregues: telas/integração Flutter, deploy, pausa/retomada, automações,
+notificações de transição e calendários externos. Seleção não reserva item futuro.
+Uma atividade incompatível continua iniciável pelas regras canônicas; a rotina
+não encerra, bloqueia por horário nem altera duração padrão da fila.

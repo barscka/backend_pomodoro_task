@@ -15,7 +15,8 @@ class RetroPostgresConcurrencyTests(TransactionTestCase):
     reset_sequences = True
 
     def setUp(self):
-        group = Group.objects.get(is_retro_catalog=True)
+        # TransactionTestCase flushes migration seed data between tests.
+        group, _ = Group.objects.get_or_create(is_retro_catalog=True, defaults={'name': 'Retrogames'})
         generation = Category.objects.create(name='Retro concorrente', group=group, retro_sort_order=1)
         platform = RetroPlatform.objects.create(generation=generation, name='Console', slug='console', sort_order=1)
         activity = Activity.objects.create(name='Jogo concorrente', category=generation)

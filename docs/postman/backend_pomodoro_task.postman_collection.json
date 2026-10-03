@@ -1367,6 +1367,900 @@
           }
         }
       ]
+    },
+    {
+      "name": "Rotinas flexíveis (SPEC-017)",
+      "description": "Orientações, sem efeitos colaterais em GET. Modelo inicial e início só por ações explícitas. Leia docs/contracts/spec-017-routines.md.",
+      "item": [
+        {
+          "name": "Ler plano e versão",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aplicar modelo inicial explicitamente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/template/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "template",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_version}}\",\n  \"effective_from\": \"{{routine_date}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar revisão personalizada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_version}}\",\n  \"effective_from\": \"{{routine_date}}\",\n  \"blocks\": [\n    {\n      \"block_id\": \"{{routine_block_id}}\",\n      \"weekday\": 1,\n      \"kind\": \"gameplay\",\n      \"profile\": \"general\",\n      \"start_time\": \"18:30\",\n      \"end_time\": \"20:00\",\n      \"end_day_offset\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar revisão prospectiva (substitui todos os blocos)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_version}}\",\n  \"effective_from\": \"{{routine_effective_from}}\",\n  \"blocks\": [\n    {\n      \"block_id\": \"{{routine_block_id}}\",\n      \"weekday\": 1,\n      \"kind\": \"gameplay\",\n      \"profile\": \"general\",\n      \"start_time\": \"18:30\",\n      \"end_time\": \"20:00\",\n      \"end_day_offset\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agenda expandida",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/agenda/?date_from={{routine_date_from}}&date_to={{routine_date_to}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "agenda",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "{{routine_date_from}}"
+                },
+                {
+                  "key": "date_to",
+                  "value": "{{routine_date_to}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Agora e próximo bloco",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/context/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "context",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}",
+                  "const current = pm.response.json().current;",
+                  "if (current) { pm.environment.set('routine_block_id', current.block_id); pm.environment.set('routine_origin_date', current.origin_date); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Encurtar só esta ocorrência",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/exception/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "exception",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_version}}\",\n  \"origin_date\": \"{{routine_origin_date}}\",\n  \"block_id\": \"{{routine_block_id}}\",\n  \"action\": \"shorten\",\n  \"replacement\": {\n    \"kind\": \"gameplay\",\n    \"profile\": \"general\",\n    \"start_time\": \"18:30\",\n    \"end_time\": \"19:30\",\n    \"end_day_offset\": 0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar só esta ocorrência",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/exception/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "exception",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_version}}\",\n  \"origin_date\": \"{{routine_origin_date}}\",\n  \"block_id\": \"{{routine_block_id}}\",\n  \"action\": \"cancel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspender orientações do dia",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/suspension/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "suspension",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_version}}\",\n  \"date\": \"{{routine_date}}\",\n  \"suspended\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reativar orientações do dia",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/suspension/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "suspension",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_version}}\",\n  \"date\": \"{{routine_date}}\",\n  \"suspended\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar classificação",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/activity-preference/?activity_id={{activity_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "activity-preference",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "activity_id",
+                  "value": "{{activity_id}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.environment.set('routine_profile_version', pm.response.json().version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Classificar modo casual manualmente",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/activity-preference/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "activity-preference",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{routine_profile_version}}\",\n  \"activity_id\": \"{{activity_id}}\",\n  \"pause_immediately\": true,\n  \"online\": false,\n  \"requires_group\": false,\n  \"competitive\": false,\n  \"focus_suitable\": null,\n  \"minimum_minutes\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Recomendados agora",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/recommendations/?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "recommendations",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ler preferência da ocorrência",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/selection/?origin_date={{routine_origin_date}}&block_id={{routine_block_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "selection",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "origin_date",
+                  "value": "{{routine_origin_date}}"
+                },
+                {
+                  "key": "block_id",
+                  "value": "{{routine_block_id}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Preferir fila do grupo (sem reservar item)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/selection/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "selection",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin_date\": \"{{routine_origin_date}}\",\n  \"block_id\": \"{{routine_block_id}}\",\n  \"expected_version\": \"{{routine_version}}\",\n  \"source\": \"queue\",\n  \"group_id\": \"{{group_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Preferir Premium na ocorrência",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/selection/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "selection",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin_date\": \"{{routine_origin_date}}\",\n  \"block_id\": \"{{routine_block_id}}\",\n  \"expected_version\": \"{{routine_version}}\",\n  \"source\": \"premium\",\n  \"premium_period_id\": \"{{premium_period_id}}\",\n  \"return_group_id\": \"{{group_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.version !== undefined) pm.environment.set('routine_version', body.version);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prévia somente leitura",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/preview/?origin_date={{routine_origin_date}}&block_id={{routine_block_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "preview",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "origin_date",
+                  "value": "{{routine_origin_date}}"
+                },
+                {
+                  "key": "block_id",
+                  "value": "{{routine_block_id}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) pm.environment.set('routine_preview_token', pm.response.json().preview_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar explicitamente com prévia revalidada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/start/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "start",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin_date\": \"{{routine_origin_date}}\",\n  \"block_id\": \"{{routine_block_id}}\",\n  \"preview_token\": \"{{routine_preview_token}}\",\n  \"request_id\": \"{{routine_request_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Planejado versus registrado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/routines/summary/?date_from={{routine_date_from}}&date_to={{routine_date_to}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "routines",
+                "summary",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "{{routine_date_from}}"
+                },
+                {
+                  "key": "date_to",
+                  "value": "{{routine_date_to}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Usar rotina como referência Premium (opção explícita)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Api-Key {{api_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/gameplay-tracking-settings/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gameplay-tracking-settings",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": \"{{gameplay_settings_version}}\",\n  \"reference_source\": \"routine\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }

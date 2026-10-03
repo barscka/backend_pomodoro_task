@@ -17,12 +17,13 @@ checkouts; não comprova publicação, migration aplicada ou flag habilitada no 
 | Shell e experiência desktop | Sem nova regra de domínio | Implementado no checkout analisado | SPEC-FRONT-012 marcada como homologada no frontend |
 | Nova experiência mobile | Sem nova regra de domínio | Especificação em draft | SPEC-FRONT-013; não confundir com a tela Retro mobile já existente |
 | Pausa e retomada com intervalos | Proposta futura | Proposta futura | Item 2 original |
-| Rotinas flexíveis por dia/horário | Planejamento funcional | Planejamento mobile/desktop | SPEC-017, frente escolhida para detalhamento |
+| Rotinas flexíveis por dia/horário | Implementado; validação isolada | Planejamento mobile/desktop | SPEC-017; integração Flutter e implantação pendentes |
 
 A ordem original era metas → pausas → rotinas. Premium e RetroGames foram entregues
 como evoluções adicionais; isso não torna pausas ou rotinas automaticamente prontas.
 Em 2026-10-03, o usuário escolheu detalhar rotinas com sua expectativa semanal.
-A SPEC-017 registra esse plano flexível; a codificação ainda não foi solicitada.
+A SPEC-017 registra esse plano flexível; o backend foi implementado nesta entrega,
+com contratos/fixtures e testes isolados. Flutter e implantação continuam pendentes.
 
 Os detalhes dos itens 1–3 abaixo preservam o planejamento original. Para metas,
 prevalecem as decisões já implementadas nas SPEC-BACK-012/013; as perguntas antigas
@@ -160,7 +161,8 @@ Estimativa qualitativa: complexidade média a alta.
 
 Plano atual: [SPEC-017 — Rotinas flexíveis](SPEC-017_ROTINAS_FLEXIVEIS_POR_DIA_E_HORARIO.md),
 elaborado em 2026-10-03 a partir da expectativa semanal fornecida pelo usuário.
-Status: planejamento funcional para backend e Flutter, sem implementação.
+Status: backend implementado com migration aditiva 0021 e testes isolados;
+Flutter ainda em planejamento. Nenhuma migration ou flag foi aplicada no ambiente real.
 
 Referência visual incorporada à seção 12 da SPEC-017: quadros de dias úteis/fim de
 semana, painel Hoje/Agora e seleção no bloco de gameplay entre Premium e próxima
@@ -186,8 +188,10 @@ as restrições de elegibilidade por horário propostas na versão inicial do ro
 - Preservar fila, Premium e RetroGames. Adequação temporal é contexto e recomendação,
   sem criar outro timer ou expirar/pular itens automaticamente.
 
-Entrega proposta: agenda/contexto atual → adequação de jogos → comparação temporal
-com histórico → integração futura de pausa/retomada para descontar interrupções.
+Entregue no backend: agenda/contexto, adequação de jogos, seleção Premium/fila por
+ocorrência, prévia somente leitura, início canônico revalidado e comparação temporal
+com histórico. Contratos/fixtures disponíveis em docs/contracts/spec-017-routines.*.
+Pausa/retomada e integração Flutter continuam pendentes.
 A referência Premium de 5h/dia só muda para capacidade da rotina por escolha explícita.
 
 ## 4. Premium — implementação existente
@@ -300,8 +304,8 @@ banco usado pelo usuário.
    catálogo, sessões ou importador como se ainda fossem propostas.
 2. **Manter a curadoria:** atualizar o JSON versionado quando necessário, revisar
    dry-run e preservar identidade externa e progresso ao publicar novas versões.
-3. **Detalhar a implementação de rotinas:** a SPEC-017 agora define a frente escolhida
-   pelo usuário. Próximo passo é fechar modelos, contratos e testes da agenda flexível.
+3. **Integrar rotinas no Flutter:** consumir os contratos/fixtures entregues na SPEC-017,
+   homologar estados e conflitos e planejar publicação da migration 0021 no backend.
    Shell mobile e pausas continuam frentes separadas; pausa será útil para medir
    interrupções, mas não é pré-requisito para a agenda.
 
@@ -316,7 +320,11 @@ handoffs. Padrões carregados: personal-python-api, personal-flutter e personal-
 Doctors dos dois projetos passaram, com aviso apenas da variável PERSONAL_SKILLS_HOME
 não definida (o local_path configurado resolve o repositório).
 
-Validado JSON do catálogo, contagens/soma e links documentais. Suites de backend e
-Flutter não foram reexecutadas por se tratar de atualização documental; resultados
+Validado JSON do catálogo, contagens/soma e links documentais. Na revisão documental inicial, suites de backend e
+Flutter não foram reexecutadas; resultados
 citados nos handoffs pertencem às respectivas entregas. Não houve consulta ao banco,
 importação de catálogo, mudança de flags nem alteração no frontend.
+
+A entrega posterior do backend de rotinas foi validada em SQLite isolado e
+PostgreSQL descartável. Resultados atuais e passos operacionais pendentes estão no
+[handoff da SPEC-017](../handoffs/06_handoff_rotinas_flexiveis.md). Flutter não foi alterado.

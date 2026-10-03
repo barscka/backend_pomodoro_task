@@ -612,6 +612,7 @@ class ExecutionIdempotency(models.Model):
 
 
 class GameplayTrackingSettings(models.Model):
+    reference_source = models.CharField(max_length=16, choices=[("fixed_daily", "Diária"), ("routine", "Rotina")], default="fixed_daily")
     scope_key = models.CharField(max_length=64, unique=True)
     daily_reference_minutes = models.PositiveIntegerField(default=300)
     groups = models.ManyToManyField(Group, blank=True, related_name='gameplay_settings')
@@ -762,3 +763,104 @@ class GoalActivitySkip(models.Model):
                 name='goal_skip_category_time_idx',
             ),
         ]
+
+
+class RoutinePlan(models.Model):
+    scope_key = models.CharField(max_length=64, unique=True)
+    timezone = models.CharField(max_length=64, default='America/Sao_Paulo')
+    version = models.PositiveIntegerField(default=0)
+    template_applied = models.BooleanField(default=False)
+
+
+class RoutineRevision(models.Model):
+    plan = models.ForeignKey(RoutinePlan, on_delete=models.CASCADE, related_name='revisions')
+    effective_from = models.DateField()
+    version = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['effective_from']
+        constraints = [models.UniqueConstraint(fields=['plan', 'effective_from'], name='routine_revision_date_unique')]
+
+
+class RoutineBlock(models.Model):
+    revision = models.ForeignKey(RoutineRevision, on_delete=models.CASCADE, related_name='blocks')
+    block_id = models.UUIDField()
+    weekday = models.PositiveSmallIntegerField()
+    kind = models.CharField(max_length=16, choices=[('gameplay', 'Gameplay'), ('cardio', 'Cardio'), ('family', 'Família')])
+    profile = models.CharField(max_length=16, choices=[('general', 'Geral'), ('focus', 'Foco'), ('interruptible', 'Interrompível')])
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    end_day_offset = models.PositiveSmallIntegerField(default=0)
+    expected_min_minutes = models.PositiveSmallIntegerField(null=True, default=None)
+    expected_max_minutes = models.PositiveSmallIntegerField(null=True, default=None)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['revision', 'block_id'], name='routine_block_identity_unique'),
+            models.CheckConstraint(condition=Q(weekday__lte=6, end_day_offset__lte=1), name='routine_block_valid_days'),
+            models.CheckConstraint(condition=Q(end_day_offset=1) | Q(end_time__gt=models.F('start_time')), name='routine_block_positive'),
+            models.CheckConstraint(condition=Q(kind__in=['gameplay', 'cardio', 'family'], profile__in=['general', 'focus', 'interruptible']) & (Q(kind='gameplay') | Q(profile='general')), name='routine_block_valid_profile'),
+            models.CheckConstraint(condition=Q(expected_min_minutes__isnull=True, expected_max_minutes__isnull=True) | Q(kind='cardio', expected_min_minutes__gte=1, expected_max_minutes__lte=1440, expected_min_minutes__lte=models.F('expected_max_minutes'), expected_min_minutes__isnull=False, expected_max_minutes__isnull=False), name='routine_cardio_expectation_valid'),
+        ]
+
+
+class RoutineException(models.Model):
+    plan = models.ForeignKey(RoutinePlan, on_delete=models.CASCADE, related_name='exceptions')
+    origin_date = models.DateField()
+    block_id = models.UUIDField()
+    action = models.CharField(max_length=16)
+    replacement = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['plan', 'origin_date', 'block_id'], name='routine_exception_unique'),
+                       models.CheckConstraint(condition=Q(action__in=['cancel', 'move', 'shorten', 'replace']), name='routine_exception_action_valid')]
+
+
+class RoutineSuspension(models.Model):
+    plan = models.ForeignKey(RoutinePlan, on_delete=models.CASCADE, related_name='suspensions')
+    date = models.DateField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['plan', 'date'], name='routine_suspension_unique')]
+
+
+class ActivityRoutinePreference(models.Model):
+    scope_key = models.CharField(max_length=64)
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE)
+    version = models.PositiveIntegerField(default=1)
+    pause_immediately = models.BooleanField(null=True, default=None)
+    online = models.BooleanField(null=True, default=None)
+    requires_group = models.BooleanField(null=True, default=None)
+    competitive = models.BooleanField(null=True, default=None)
+    focus_suitable = models.BooleanField(null=True, default=None)
+    minimum_minutes = models.PositiveIntegerField(null=True, default=None)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['scope_key', 'activity'], name='routine_activity_scope_unique'),
+                       models.CheckConstraint(condition=Q(minimum_minutes__isnull=True) | Q(minimum_minutes__gte=1, minimum_minutes__lte=720), name='routine_minimum_valid')]
+
+
+class RoutineSelection(models.Model):
+    plan = models.ForeignKey(RoutinePlan, on_delete=models.CASCADE, related_name='selections')
+    origin_date = models.DateField()
+    block_id = models.UUIDField()
+    source = models.CharField(max_length=8)
+    premium_period = models.ForeignKey(PremiumPeriod, null=True, on_delete=models.PROTECT)
+    group = models.ForeignKey(Group, null=True, on_delete=models.PROTECT, related_name='+')
+    return_group = models.ForeignKey(Group, null=True, on_delete=models.PROTECT, related_name='+')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['plan', 'origin_date', 'block_id'], name='routine_selection_unique'),
+            models.CheckConstraint(condition=(Q(source='premium', premium_period__isnull=False, group__isnull=True) | Q(source='queue', group__isnull=False, premium_period__isnull=True)), name='routine_selection_source'),
+        ]
+
+
+class RoutineStartRequest(models.Model):
+    plan = models.ForeignKey(RoutinePlan, on_delete=models.CASCADE)
+    request_id = models.UUIDField()
+    payload_hash = models.CharField(max_length=64)
+    schedule = models.ForeignKey(Schedule, null=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['plan', 'request_id'], name='routine_start_request_unique')]

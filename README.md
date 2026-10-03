@@ -405,3 +405,35 @@ TEST_POSTGRES_USER=postgres TEST_POSTGRES_PASSWORD=postgres \
 python manage.py test apps.pomodoro.test_spec_014_postgres \
   --settings=config.settings.postgres_concurrency
 ```
+
+## Rotinas flexíveis (SPEC-017)
+
+Backend implementado: plano semanal versionado, ajustes por ocorrência, suspensão,
+contexto Agora, classificação de jogos, preferência Premium/fila, prévia somente
+leitura e resumo planejado versus registrado. A rotina é orientativa e não encerra
+sessões nem altera a fila automaticamente. Modelo nominal: 42h de gameplay por
+semana (6h interrompíveis) e 22h30 familiares; não são metas obrigatórias.
+
+- [Contrato da API e decisões](docs/contracts/spec-017-routines.md).
+- [Fixtures versionadas para Flutter](docs/contracts/spec-017-routines.json).
+- [Handoff e validação](docs/handoffs/06_handoff_rotinas_flexiveis.md).
+- Postman: pasta **Rotinas flexíveis (SPEC-017)** na coleção existente.
+
+Migration aditiva **0021**, sem carga automática. Em implantação autorizada, aplicar
+as migrations e depois usar `POST /api/routines/template/` explicitamente por chave,
+com data inicial escolhida; não retroagir planejamento histórico. Configurar grupos
+de gameplay para contabilizar sessões de fila comuns. Referência Premium continua
+em 5h/dia até `reference_source=routine` nas configurações. A flag existente de
+início Premium direto continua sendo respeitada, sem alteração de seu padrão.
+Flutter, banco real e implantação não foram alterados nesta entrega.
+
+Testes isolados:
+
+```sh
+APP_ENV=test TEST_DATABASE_URL=sqlite:///tests/.tmp/routines.sqlite \
+DJANGO_SETTINGS_MODULE=config.settings.test .venv/bin/python manage.py test --noinput
+```
+
+Para locks, usar exclusivamente PostgreSQL descartável com
+`config.settings.postgres_concurrency` e variáveis TEST_POSTGRES_*; nunca apontar
+esse perfil para um banco compartilhado. Os comandos e resultados estão no handoff.
