@@ -17,12 +17,12 @@ checkouts; não comprova publicação, migration aplicada ou flag habilitada no 
 | Shell e experiência desktop | Sem nova regra de domínio | Implementado no checkout analisado | SPEC-FRONT-012 marcada como homologada no frontend |
 | Nova experiência mobile | Sem nova regra de domínio | Especificação em draft | SPEC-FRONT-013; não confundir com a tela Retro mobile já existente |
 | Pausa e retomada com intervalos | Proposta futura | Proposta futura | Item 2 original |
-| Rotinas por dia/horário | Proposta futura | Proposta futura | Item 3 original |
+| Rotinas flexíveis por dia/horário | Planejamento funcional | Planejamento mobile/desktop | SPEC-017, frente escolhida para detalhamento |
 
 A ordem original era metas → pausas → rotinas. Premium e RetroGames foram entregues
 como evoluções adicionais; isso não torna pausas ou rotinas automaticamente prontas.
-A próxima prioridade de implementação permanece a definir, sem atribuir nova ordem
-como decisão já tomada pelo usuário.
+Em 2026-10-03, o usuário escolheu detalhar rotinas com sua expectativa semanal.
+A SPEC-017 registra esse plano flexível; a codificação ainda não foi solicitada.
 
 Os detalhes dos itens 1–3 abaixo preservam o planejamento original. Para metas,
 prevalecem as decisões já implementadas nas SPEC-BACK-012/013; as perguntas antigas
@@ -156,40 +156,35 @@ backend, sem depender apenas do relógio do cliente.
 
 Estimativa qualitativa: complexidade média a alta.
 
-## 3. Rotinas por dia da semana e horário
+## 3. Rotinas flexíveis por dia da semana e horário
 
-### Objetivo e MVP proposto
+Plano atual: [SPEC-017 — Rotinas flexíveis](SPEC-017_ROTINAS_FLEXIVEIS_POR_DIA_E_HORARIO.md),
+elaborado em 2026-10-03 a partir da expectativa semanal fornecida pelo usuário.
+Status: planejamento funcional para backend e Flutter, sem implementação.
 
-Adequar as sugestões à disponibilidade do usuário. Exemplos: estudo de segunda a
-sexta das 19h às 22h e jogos aos fins de semana.
+A rotina orienta escolhas e apresenta o próximo compromisso; não bloqueia início,
+não encerra partidas nem aplica penalidades. Essa decisão substitui explicitamente
+as restrições de elegibilidade por horário propostas na versão inicial do roadmap.
 
-- Cadastrar janelas recorrentes de disponibilidade por dia e horário.
-- Aplicar as janelas à elegibilidade das atividades na fila.
-- Explicar indisponibilidade por rotina e mostrar a próxima janela disponível.
-- Manter o comportamento atual para atividades sem restrição de rotina.
+- Dias úteis: cardio 18h–18h30 (treino de 15–30 min), gameplay 18h30–20h,
+  tempo em família 20h–22h30 e gameplay 22h30–01h.
+- Fim de semana: gameplay focado 07h–09h, casual/interrompível 09h–12h,
+  almoço/família 13h–14h30, gameplay 14h30–18h, cardio 18h–18h30,
+  família 19h–22h30 e gameplay 22h30–01h. Intervalos não definidos ficam livres.
+- Disponibilidade nominal: 4h por dia útil, 11h por dia de fim de semana,
+  total de 42h semanais; 6h são explicitamente sujeitas a interrupções.
+- Janela casual recomenda jogos pausáveis e solo, sem online/grupo/competitivo;
+  perfil desconhecido não é presumido adequado. Catálogo geral permanece acessível.
+- Registrar planejado versus gameplay registrado, sem tratar disponibilidade como
+  meta obrigatória nem inferir atenção real à família a partir do timer.
+- Suportar ajustes só hoje, dia suspenso, revisão semanal e blocos atravessando
+  meia-noite. Não reescrever o planejamento passado após edição.
+- Preservar fila, Premium e RetroGames. Adequação temporal é contexto e recomendação,
+  sem criar outro timer ou expirar/pular itens automaticamente.
 
-### Integração e critérios de aceite
-
-- Integrar a regra aos serviços de fila, incluindo prévia, apresentação, início,
-  recriação e revisão de itens pulados.
-- Não iniciar uma atividade fora de sua janela permitida.
-- Uma execução já iniciada não é interrompida quando a janela fecha.
-- A exclusão temporária por horário não é registrada como pulo voluntário.
-- A fila volta a oferecer atividades quando a janela abre, sem perder histórico.
-- Cobrir limites de horário, virada de dia, fuso e interação com limites diários.
-
-### Decisões pendentes e riscos
-
-Definir se regras pertencem à atividade, categoria ou grupo e a precedência entre
-elas. Definir janelas que atravessam a meia-noite, exceções por data e se basta
-iniciar dentro da janela ou se toda a duração precisa caber nela.
-
-Filas são persistentes: indisponibilidade temporária não pode eliminar uma atividade
-definitivamente por reaproveitar, sem revisão, o mecanismo atual de expiração.
-A prioridade premium deve respeitar as janelas ou ter uma exceção explicitamente
-definida. Lembretes e integração com calendários ficam fora do MVP.
-
-Estimativa qualitativa: complexidade média.
+Entrega proposta: agenda/contexto atual → adequação de jogos → comparação temporal
+com histórico → integração futura de pausa/retomada para descontar interrupções.
+A referência Premium de 5h/dia só muda para capacidade da rotina por escolha explícita.
 
 ## 4. Premium — implementação existente
 
@@ -301,13 +296,14 @@ banco usado pelo usuário.
    catálogo, sessões ou importador como se ainda fossem propostas.
 2. **Manter a curadoria:** atualizar o JSON versionado quando necessário, revisar
    dry-run e preservar identidade externa e progresso ao publicar novas versões.
-3. **Escolher a próxima evolução:** nova experiência mobile (SPEC-FRONT-013), pausas
-   e intervalos ou rotinas. Essas frentes continuam separadas e não foram priorizadas
-   novamente por esta revisão.
+3. **Detalhar a implementação de rotinas:** a SPEC-017 agora define a frente escolhida
+   pelo usuário. Próximo passo é fechar modelos, contratos e testes da agenda flexível.
+   Shell mobile e pausas continuam frentes separadas; pausa será útil para medir
+   interrupções, mas não é pré-requisito para a agenda.
 
 Pausas futuras devem contemplar queue, premium_direct e retro_direct, sem contabilizar
-intervalos nas horas jogadas. Rotinas futuras precisam explicitar se restringem apenas
-sugestões da fila ou também escolha direta; não impor essa restrição automaticamente.
+intervalos nas horas jogadas. A SPEC-017 define rotinas como
+orientação para recomendações, preservando a liberdade de escolha direta.
 
 ## Evidências e validação desta atualização
 
