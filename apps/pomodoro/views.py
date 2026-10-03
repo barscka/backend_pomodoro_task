@@ -754,7 +754,14 @@ class PremiumAnalyticsViewSet(viewsets.GenericViewSet):
         response.data['premium_seconds'] = sum(row['premium_seconds'] for row in rows)
         response.data['gameplay_seconds'] = sum(row['gameplay_seconds'] for row in rows)
         response.data['other_gameplay_seconds'] = sum(row['other_gameplay_seconds'] for row in rows)
-        response.data['reference_seconds'] = ((response.data['date_to'] - response.data['date_from']).days + 1) * response.data['daily_reference_minutes'] * 60
+        if response.data['reference_source'] == 'routine':
+            from .services.routine_reporting import routine_reference
+            reference = routine_reference(build_scope_key(request), response.data['date_from'], response.data['date_to'])
+            response.data['reference_seconds'] = reference['reference_seconds']
+            response.data['reference_denominators'] = {k: reference[k] for k in ('general_seconds', 'interruptible_seconds', 'coverage', 'known_days')}
+        else:
+            response.data['reference_seconds'] = ((response.data['date_to'] - response.data['date_from']).days + 1) * response.data['daily_reference_minutes'] * 60
+            response.data['reference_denominators'] = {'fixed_daily_seconds': response.data['reference_seconds']}
         from collections import defaultdict
         from .services.premium_reporting import report_window, segments
         start, end = report_window(response.data['date_from'], response.data['date_to'])
@@ -803,28 +810,17 @@ class GameplayTrackingSettingsViewSet(viewsets.GenericViewSet):
         return Response(settings_for(build_scope_key(request)))
 
     def partial_update(self, request, pk=None):
-        scope = build_scope_key(request)
-        with transaction.atomic():
-            obj = GameplayTrackingSettings.objects.select_for_update().filter(scope_key=scope).first()
-            expected_version = request.data.get('expected_version')
-            if expected_version is None:
-                return Response({'code': 'expected_version_required'}, status=400)
-            current_version = obj.version if obj else 0
-            if int(expected_version) != current_version:
-                return Response({'code': 'stale_settings_version'}, status=409)
-            if obj is None:
-                obj = GameplayTrackingSettings(scope_key=scope)
-            minutes = int(request.data.get('daily_reference_minutes', obj.daily_reference_minutes))
-            if not 1 <= minutes <= 1440:
-                return Response({'code': 'invalid_daily_reference'}, status=400)
-            groups = Group.objects.filter(id__in=request.data.get('group_ids', []))
-            if groups.count() != len(set(request.data.get('group_ids', []))):
-                return Response({'code': 'group_not_found'}, status=400)
-            obj.daily_reference_minutes, obj.version = minutes, current_version + 1
-            if obj.pk:
-                obj.save(update_fields=['daily_reference_minutes', 'version', 'updated_at'])
-            else:
-                obj.save()
-            obj.groups.set(groups)
+        from .routine_serializers import TrackingSettingsSerializer
+        from .services.gameplay_settings import update_settings
+        from .services.routines import RoutineError
         from .services.premium_reporting import settings_for
+        serializer = TrackingSettingsSerializer(data=request.data)
+        if not serializer.is_valid():
+            code = 'expected_version_required' if 'expected_version' not in request.data else 'invalid_daily_reference' if 'daily_reference_minutes' in serializer.errors else 'invalid_settings'
+            return Response({'code': code, 'fields': serializer.errors}, status=400)
+        scope = build_scope_key(request)
+        try:
+            update_settings(scope, serializer.validated_data)
+        except RoutineError as exc:
+            return Response({'code': exc.code, 'detail': exc.detail}, status=exc.status)
         return Response(settings_for(scope))

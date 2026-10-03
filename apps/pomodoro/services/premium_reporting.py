@@ -21,6 +21,7 @@ def _pct(a, b):
 def settings_for(scope_key):
     obj = GameplayTrackingSettings.objects.filter(scope_key=scope_key).prefetch_related('groups').first()
     return {'daily_reference_minutes': obj.daily_reference_minutes if obj else 300,
+            'reference_source': obj.reference_source if obj else 'fixed_daily',
             'group_ids': list(obj.groups.values_list('id', flat=True)) if obj else [],
             'version': obj.version if obj else 0, 'timezone': 'America/Sao_Paulo'}
 
@@ -60,6 +61,26 @@ def period_stats(period, scope_key):
     days = max((effective_end.astimezone(ZONE).date() - p0.date()).days + (1 if effective_end > p0 else 0), 0)
     config = settings_for(scope_key)
     reference = days * config['daily_reference_minutes'] * 60
+    reference_denominators = {'fixed_daily_seconds': reference}
+    if config['reference_source'] == 'routine':
+        from .routine_reporting import capacities
+        last_day = max(p0.date(), effective_end.astimezone(ZONE).date())
+        values, agenda = capacities(scope_key, p0.date(), last_day)
+        # Same elapsed civil-day convention as the fixed daily reference; clip
+        # the period boundaries so availability before activation is excluded.
+        complete = all(v['known'] for v in values) and effective_end > p0
+        general = interrupted = 0
+        from .routine_reporting import overlap_seconds
+        for row in agenda['occurrences']:
+            if row['kind'] == 'gameplay':
+                seconds = overlap_seconds(p0, min(p1, report_window(last_day, last_day)[1]), row['starts_at'], row['ends_at']) if effective_end > p0 else 0
+                if row['profile'] == 'interruptible':
+                    interrupted += seconds
+                else:
+                    general += seconds
+        reference = general + interrupted if complete else None
+        reference_denominators = {'general_seconds': general, 'interruptible_seconds': interrupted,
+                                  'coverage': 'complete' if complete else 'partial', 'known_days': sum(v['known'] for v in values)}
     open_schedule = Schedule.objects.filter(scope_key=scope_key, activity_id=period.activity_id,
         state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]).first()
     estimate = 0
@@ -69,6 +90,7 @@ def period_stats(period, scope_key):
             'session_count': len({r[0].source_schedule_id for r in rows}),
             'days_with_gameplay': len({r[2].astimezone(ZONE).date() for r in rows}),
             'elapsed_days': days, 'daily_reference_minutes': config['daily_reference_minutes'],
+            'reference_source': config['reference_source'], 'reference_denominators': reference_denominators,
             'elapsed_reference_seconds': reference, 'reference_percent': _pct(total, reference),
             'open_estimate_seconds': estimate, 'pending_reconciliation_count': 0,
             'coverage': 'complete' if not GoalCompletion.objects.filter(scope_key=scope_key, started_at__isnull=True).exists() else 'partial',
@@ -96,11 +118,22 @@ def daily_summary(scope_key, date_from, date_to):
                 chunk_end = min(e, midnight)
                 gameplay[cursor.astimezone(ZONE).date()] += int((chunk_end - cursor).total_seconds())
                 cursor = chunk_end
+    routine_days = {}
+    if config['reference_source'] == 'routine':
+        from .routine_reporting import capacities
+        routine_days = {row['date']: row for row in capacities(scope_key, date_from, date_to)[0]}
     values, day = [], date_from
     while day <= date_to:
+        reference_seconds = config['daily_reference_minutes'] * 60
+        denominators = {'fixed_daily_seconds': reference_seconds}
+        if config['reference_source'] == 'routine':
+            ref = routine_days[day]
+            reference_seconds = ref['reference_seconds']
+            denominators = {'general_seconds': ref['general_seconds'], 'interruptible_seconds': ref['interruptible_seconds'],
+                            'coverage': 'complete' if ref['known'] else 'partial', 'known_days': int(ref['known'])}
         values.append({'date': day, 'premium_seconds': premium[day], 'gameplay_seconds': gameplay[day],
                        'other_gameplay_seconds': max(gameplay[day] - premium[day], 0),
-                       'reference_seconds': config['daily_reference_minutes'] * 60,
+                       'reference_seconds': reference_seconds, 'reference_source': config['reference_source'], 'reference_denominators': denominators,
                        'is_partial_day': day == timezone.localdate()})
         day += timedelta(days=1)
     return values, config

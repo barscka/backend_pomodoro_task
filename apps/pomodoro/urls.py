@@ -1,6 +1,7 @@
 # apps/pomodoro/urls.py
 from rest_framework.routers import DefaultRouter
 from django.urls import path
+from .routine_views import RoutineViewSet
 from .weekly_goal_views import WeeklyGoalViewSet
 from .views import (
     ActivityExecutionViewSet,
@@ -18,6 +19,7 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register(r'routines', RoutineViewSet, basename='routine')
 router.register(r'weekly-goals', WeeklyGoalViewSet, basename='weekly-goal')
 router.register(r'groups', GroupViewSet, basename='group')
 router.register(r'categories', CategoryViewSet, basename='category')
@@ -31,6 +33,7 @@ router.register(r'retro-generations', RetroGenerationViewSet, basename='retro-ge
 router.register(r'retro-platforms', RetroPlatformViewSet, basename='retro-platform')
 router.register(r'retro-games', RetroGameViewSet, basename='retro-game')
 urlpatterns = [
+    path('routines/', RoutineViewSet.as_view({'get': 'list', 'post': 'create', 'patch': 'update_plan'}), name='routine-plan'),
     path('activities/history/', ActivityViewSet.as_view({'get': 'history'}), name='activity-history'),
     path('activities/active/', ActivityViewSet.as_view({'get': 'active'}), name='activity-active'),
     path('gameplay-tracking-settings/', GameplayTrackingSettingsViewSet.as_view({'get': 'list', 'patch': 'partial_update'}), name='gameplay-tracking-settings'),
