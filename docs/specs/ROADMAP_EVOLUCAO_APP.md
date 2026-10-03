@@ -1,33 +1,43 @@
-# Evolução do app — metas, pausas e rotinas
+# Evolução do app — metas, Premium, RetroGames e próximas frentes
 
-## Status e ordem de trabalho
+## Estado atual — revisão de 2026-10-03
 
-Registrado em 2026-09-09. As três ideias foram selecionadas pelo usuário para trabalho
-futuro. O backend da etapa 1 foi implementado em 2026-09-09. Em 2026-09-16, o usuário
-confirmou a funcionalidade implementada e a leitura do Flutter confirmou telas e
-integração de metas. As etapas 2 e 3 continuam como propostas futuras.
+Roadmap original registrado em 2026-09-09, atualizado após leitura do código,
+contratos, testes existentes e documentos dos dois projetos. Referências da revisão:
+backend `d0c0f2d` em `main`; Flutter `d4b33b5` em
+`feature/ui-redesign-consistency`. “Implementado” abaixo significa presente nesses
+checkouts; não comprova publicação, migration aplicada ou flag habilitada no ambiente real.
 
-Nova evolução planejada em 2026-09-16: [Premium — escolha livre, continuidade e
-acompanhamento por período](SPEC-014_PREMIUM_SESSOES_LIVRES_E_ACOMPANHAMENTO.md).
-Permite escolher/repetir jogos premium sem depender da fila e acompanhar horas
-dentro de cada vigência, com referência total de 5 horas diárias. Inclui backend
-e fluxos Flutter mobile/desktop; não depende da implementação completa das rotinas.
+| Frente | Backend | Flutter | Situação |
+| --- | --- | --- | --- |
+| Metas semanais | Implementado, incluindo sinais de pulos | Implementado | Entrega existente; SPEC-BACK-012/013 |
+| Premium: sessões livres e acompanhamento | Implementado | Implementado, mobile e desktop | Substitui o status antigo de apenas planejamento da SPEC-014; conferir liberação no ambiente |
+| RetroGames: catálogo, progresso e sessões | Implementado | Implementado, mobile e desktop | Nova frente entregue; SPEC-BACK-015 e SPEC-FRONT-010 |
+| Importação versionada do catálogo RetroGames | Implementado | Consome o catálogo pela API existente | SPEC-BACK-016; carga no ambiente não verificada nesta revisão |
+| Shell e experiência desktop | Sem nova regra de domínio | Implementado no checkout analisado | SPEC-FRONT-012 marcada como homologada no frontend |
+| Nova experiência mobile | Sem nova regra de domínio | Especificação em draft | SPEC-FRONT-013; não confundir com a tela Retro mobile já existente |
+| Pausa e retomada com intervalos | Proposta futura | Proposta futura | Item 2 original |
+| Rotinas por dia/horário | Proposta futura | Proposta futura | Item 3 original |
 
-Ordem acordada:
+A ordem original era metas → pausas → rotinas. Premium e RetroGames foram entregues
+como evoluções adicionais; isso não torna pausas ou rotinas automaticamente prontas.
+A próxima prioridade de implementação permanece a definir, sem atribuir nova ordem
+como decisão já tomada pelo usuário.
 
-1. Metas semanais com acompanhamento de progresso.
-2. Pausa e retomada, com intervalos configuráveis.
-3. Rotinas por dia da semana e horário.
-
-Os detalhes abaixo são propostas iniciais, a refinar ao iniciar cada funcionalidade.
-A análise de origem foi limitada ao backend; conferir o frontend em
-`/home/barscka/workspace/fullstack/frontend_pomodoro_task/` antes de fechar contratos e telas.
+Os detalhes dos itens 1–3 abaixo preservam o planejamento original. Para metas,
+prevalecem as decisões já implementadas nas SPEC-BACK-012/013; as perguntas antigas
+não significam que o MVP continua pendente.
 
 ## Base existente
 
 O backend possui atividades organizadas por categoria e grupo, limites diários,
 filas persistentes, prioridade premium, registros de pulos, execução persistida e
-histórico. Também oferece importação de atividades da Steam pelo admin.
+histórico. Também oferece importação de atividades da Steam pelo admin, períodos
+Premium, sessões diretas Premium/RetroGames e catálogo retrô versionado.
+
+O Flutter possui os módulos correspondentes integrados ao mesmo coordenador de
+execução. No mobile, Retro é um destino próprio; no desktop, RetroGames participa
+do shell persistente junto de Pomodoro, Premium, histórico, fila e metas.
 
 Principais pontos de integração:
 
@@ -181,12 +191,132 @@ definida. Lembretes e integração com calendários ficam fora do MVP.
 
 Estimativa qualitativa: complexidade média.
 
+## 4. Premium — implementação existente
+
+Referência: [SPEC-014](SPEC-014_PREMIUM_SESSOES_LIVRES_E_ACOMPANHAMENTO.md).
+
+Backend com períodos, início direto, continuação, acompanhamento e configurações
+de gameplay. Flutter com modelos, PremiumController, PremiumScreen, formulários e
+integração ao timer canônico. O status anterior deste roadmap (“ainda sem código”)
+não corresponde mais ao estado dos repositórios.
+
+A flag `PREMIUM_DIRECT_START_ENABLED` permanece `False` como padrão do código.
+Isso não indica o valor efetivo no deploy. Compatibilidade dos clientes e liberação
+no ambiente devem ser verificadas operacionalmente, sem reimplementar a feature.
+O cabeçalho histórico da SPEC-014 ainda menciona Flutter pendente; para o panorama
+atual, considerar esta revisão e o código consultado.
+
+## 5. RetroGames — catálogo, progresso e sessões implementados
+
+Referências:
+
+- [SPEC-BACK-015 — Catálogo e sessões](SPEC-BACK-015_CATALOGO_E_SESSOES_RETROGAMES.md).
+- [Contrato versionado para o frontend](../contracts/spec-015-retrogames.json).
+- [Handoff do backend](../handoffs/04_handoff_spec_back_015_retrogames.md).
+- [SPEC-FRONT-010 — Menu e fluxo RetroGames](/home/barscka/workspace/fullstack/frontend_pomodoro_task/docs/specs/SPEC-FRONT-010_MENU_E_FLUXO_RETROGAMES.md).
+- [Handoff do Flutter](/home/barscka/workspace/fullstack/frontend_pomodoro_task/docs/handoffs/SPEC_FRONT_010_RETROGAMES_IMPLEMENTADA.md).
+
+### Entrega no backend
+
+- Catálogo organizado por grupo Retrogames → geração → plataforma → jogo, com
+  ordem editorial, ano quando disponível, classificação essencial/complementar,
+  objetivo de jogo, estimativa total e duração padrão do bloco.
+- Modelos RetroPlatform, RetroGame e RetroGameProgress; jogo vinculado a Activity,
+  preservando a infraestrutura de execução, histórico e metas.
+- Consulta de gerações, plataformas, jogos, detalhe e sessões. Jogos têm busca,
+  filtros por geração/plataforma/tier/status/atividade e paginação.
+- Progresso por escopo: não iniciado (derivado), em andamento, concluído ou pulado,
+  com versão e transições explícitas. Tempo estimado não conclui um jogo sozinho;
+  jogar novamente não reabre automaticamente um concluído/pulado.
+- Início `retro_direct` e continuação com duração de 1 a 720 minutos por bloco,
+  idempotência e uma execução aberta por escopo, compartilhada com Pomodoro/Premium.
+- Sessões retrô não criam nem consomem itens de fila ou períodos Premium. Cotas da
+  fila consideram origens queue/legacy; execução direta continua entrando no histórico
+  e nos fatos de conclusão para metas.
+- Horas consolidadas e estimativa da sessão aberta separadas, com cobertura parcial
+  identificada quando o legado não tem precisão de segundos.
+- Migration aditiva `0020`, cadastro editorial no Admin e rotas registradas em urls.py.
+
+### Entrega no Flutter
+
+- Modelos e transporte RetroGamesApi integrados ao contrato real; RetroGamesController
+  cuida de busca, filtros, seleção, paginação, carregamento, erros e conteúdo desatualizado.
+- PomodoroController continua dono do timer, notificações, início/continuação e
+  reconciliação. Não há um cronômetro retrô independente.
+- Snapshots e ActivityExecution reconhecem `retro_direct` e `retro_game_id`, sem
+  fabricar item de fila, com recuperação da execução e retries idempotentes.
+- Mobile com destino **Retro** na navegação; desktop com **RetroGames** no shell
+  compartilhado e composição responsiva de catálogo, filtros e detalhe.
+- Detalhe mostra objetivo, estimativa total, próximo bloco, tempo jogado e sessões
+  recentes. Permite jogar, marcar concluído, pular e retomar o planejamento.
+- Após uma sessão: continuar no jogo, marcar o jogo concluído ou voltar ao catálogo.
+  Concluir um bloco e concluir o jogo são ações distintas.
+
+### Limites e acompanhamento operacional
+
+- `RETROGAMES_ENABLED=False` é o padrão do código; leitura do catálogo continua
+  disponível. Valor real da flag e distribuição dos clientes não foram inspecionados.
+- O handoff original do Flutter registrava homologação integrada pendente. Uma nota
+  posterior registra consulta à API local com 116 jogos e suporte a ano nulo; isso
+  confirma parte da integração, não a homologação completa de todos os fluxos.
+- Confirmar no ambiente de destino migration, catálogo importado, início, conclusão
+  antecipada, continuação, reinício e conflito entre dispositivos com a mesma chave.
+- Testes de concorrência PostgreSQL existem no backend; o handoff inicial registra
+  que não foram executados naquela entrega. Não tratá-los como aprovados sem nova evidência.
+- Não inclui ROMs, emuladores, abertura automática de jogos ou detecção de gameplay.
+  As horas vêm de sessões registradas no app.
+
+## 6. Importação do catálogo RetroGames — implementada
+
+Referência: [SPEC-BACK-016](SPEC-BACK-016_IMPORTACAO_CATALOGO_RETROGAMES.md) e
+[handoff da importação](../handoffs/05_handoff_importacao_catalogo_retrogames.md).
+
+Catálogo em `apps/pomodoro/data/retrogames_catalog.json`, com schema/versão editorial:
+**8 gerações, 23 plataformas e 116 jogos**, totalizando **60.060 minutos (1001 h)**
+de estimativa. Contagens e soma recalculadas diretamente do JSON nesta revisão.
+A fonte declarava 991 h; a divergência está documentada e o importador usa a soma
+das linhas. Essas horas são estimativas do roteiro, não horas já jogadas.
+
+Entregue:
+
+- Validação estrutural, chaves estáveis e identidade externa por jogo; títulos iguais
+  em plataformas distintas não são confundidos.
+- Comando `import_retrogames_catalog` com dry-run, relatório humano/JSON, carga
+  transacional e idempotente e comparação opcional com inventário local.
+- Atualização de campos editoriais sem administrar progresso, sessões, fatos, filas
+  ou configuração Premium.
+- Itens ausentes são relatados como órfãos; `--deactivate-missing` desativa somente
+  jogos/atividades comprovadamente gerenciados pelo catálogo, sem apagar histórico.
+
+Limites: plataformas órfãs não são desativadas automaticamente por falta de proveniência;
+comparação de inventário é opcional e não acompanha o deploy. O catálogo já pode ser
+carregado em lote — cadastro manual exclusivo, mencionado nos handoffs iniciais de
+RetroGames, foi superado por esta entrega. A presença do JSON não comprova carga no
+banco usado pelo usuário.
+
 ## Retomada do trabalho
 
-A etapa 1 está implementada conforme atualização acima. A nova frente premium está
-planejada na SPEC-014, ainda sem código. Pausas e rotinas gerais permanecem propostas
-para trabalho posterior.
+1. **Consolidar o que já foi entregue:** conferir ambiente e fluxos integrados de
+   Premium/RetroGames e revisar lacunas de homologação documentadas. Não refazer
+   catálogo, sessões ou importador como se ainda fossem propostas.
+2. **Manter a curadoria:** atualizar o JSON versionado quando necessário, revisar
+   dry-run e preservar identidade externa e progresso ao publicar novas versões.
+3. **Escolher a próxima evolução:** nova experiência mobile (SPEC-FRONT-013), pausas
+   e intervalos ou rotinas. Essas frentes continuam separadas e não foram priorizadas
+   novamente por esta revisão.
 
-Para cada etapa, preservar os contratos existentes e validar regras de negócio e
-API em banco de teste isolado, conforme os padrões pessoais Python API e de fluxo
-de desenvolvimento. Validar o frontend no respectivo repositório.
+Pausas futuras devem contemplar queue, premium_direct e retro_direct, sem contabilizar
+intervalos nas horas jogadas. Rotinas futuras precisam explicitar se restringem apenas
+sugestões da fila ou também escolha direta; não impor essa restrição automaticamente.
+
+## Evidências e validação desta atualização
+
+Análise estática de modelos, serviços, rotas, controllers, telas, navegação, testes e
+handoffs. Padrões carregados: personal-python-api, personal-flutter e personal-dev-workflow.
+Doctors dos dois projetos passaram, com aviso apenas da variável PERSONAL_SKILLS_HOME
+não definida (o local_path configurado resolve o repositório).
+
+Validado JSON do catálogo, contagens/soma e links documentais. Suites de backend e
+Flutter não foram reexecutadas por se tratar de atualização documental; resultados
+citados nos handoffs pertencem às respectivas entregas. Não houve consulta ao banco,
+importação de catálogo, mudança de flags nem alteração no frontend.
