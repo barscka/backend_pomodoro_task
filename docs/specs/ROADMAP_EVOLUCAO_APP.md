@@ -162,6 +162,10 @@ Plano atual: [SPEC-017 — Rotinas flexíveis](SPEC-017_ROTINAS_FLEXIVEIS_POR_DI
 elaborado em 2026-10-03 a partir da expectativa semanal fornecida pelo usuário.
 Status: planejamento funcional para backend e Flutter, sem implementação.
 
+Referência visual incorporada à seção 12 da SPEC-017: quadros de dias úteis/fim de
+semana, painel Hoje/Agora e seleção no bloco de gameplay entre Premium e próxima
+atividade da fila normal/revisão de pulados do grupo, sem avançar a fila na prévia.
+
 A rotina orienta escolhas e apresenta o próximo compromisso; não bloqueia início,
 não encerra partidas nem aplica penalidades. Essa decisão substitui explicitamente
 as restrições de elegibilidade por horário propostas na versão inicial do roadmap.

@@ -225,6 +225,10 @@ continua responsável por execução, timer, snapshot e notificações de sessã
 
 ## 9. Direção técnica e entregas
 
+Complemento de layout e seleção no bloco: ver seção 12, incluída após referência
+visual e orientação adicionais do usuário. Essa seção detalha a composição da
+agenda e substitui a grade de sete dias como apresentação inicial no desktop.
+
 Modelo proposto, a detalhar em especificação de implementação:
 
 - RoutinePlan: scope_key, timezone e identificação da rotina ativa.
@@ -281,3 +285,103 @@ não escolha. O plano inicial será editável; nenhum horário foi cadastrado em
 Padrões usados: personal-python-api, personal-flutter e personal-dev-workflow.
 Task somente documental; fórmulas e coerência do plano verificadas, sem testes de
 aplicação nem alteração de backend/Flutter executável.
+
+## 12. Referência visual e escolha de atividade no bloco de gameplay
+
+Atualização de 2026-10-03: o usuário forneceu referência visual de uma tela escura
+com navegação lateral, dois quadros de rotina, contexto atual à direita e resumo
+semanal abaixo. Solicitou escolher, no horário de gameplay, um Premium ou a próxima
+atividade aleatória/de pulados dos grupos. Esta é uma evolução do plano, sem código.
+
+### Composição desktop
+
+- Reutilizar o shell e tema existentes; acrescentar Rotina sem remover destinos
+  existentes nem reproduzir literalmente os nomes de menu ilustrativos da imagem.
+- Cabeçalho com título, indicação de flexibilidade e ação Editar rotina.
+- Área principal com quadros **Segunda a sexta** e **Sábado e domingo** lado a lado,
+  contendo cartões de horário, ícone, título e perfil. Controle Seg–Sex/Sáb–Dom
+  destaca o quadro escolhido; em largura menor, alterna um quadro visível por vez.
+- Coluna lateral com **Hoje / Agora**, próximo bloco, Ajustar só hoje e Suspender
+  orientações hoje. Logo abaixo, painel de escolha **O que jogar neste bloco?**.
+- Resumo inferior: 42h disponíveis para gameplay, 22h30 familiares planejadas,
+  6h interrompíveis, 4h por dia útil e 11h por dia de fim de semana.
+- Em desktop intermediário, mover o painel de contexto/seleção para baixo dos
+  quadros. Evitar três colunas estreitas e rolagem horizontal obrigatória.
+
+Datas, barra de progresso, tempo restante e recomendações são dados reais do contexto;
+os valores e a data ilustrativos da imagem não devem ser copiados para a interface.
+A barra representa o avanço do bloco, não horas efetivamente jogadas.
+Não marcar 18h30–20h como Foco automaticamente: o plano fornecido classifica esse
+bloco como gameplay geral. Foco explícito permanece em 07h–09h no fim de semana.
+
+### Escolha dentro do bloco
+
+Ao selecionar um cartão de gameplay, exibir duas fontes:
+
+| Fonte | Seleção e prévia | Ação |
+| --- | --- | --- |
+| Premium | Escolher período vigente; mostrar jogo, vigência, adequação e duração | Jogar este Premium |
+| Fila do grupo | Escolher grupo; mostrar próxima atividade canônica e modo da fila | Jogar próxima atividade |
+
+Na fonte Fila do grupo, o modo aparece como **Fila normal — ordem aleatória já
+definida** ou **Revisão de pulados**, conforme a fila operacional daquele grupo.
+“Próximo aleatório” significa a próxima posição persistida, não um novo sorteio ao
+reabrir o seletor. Mostrar nome, grupo, duração, origem e compatibilidade com o bloco.
+
+A revisão de pulados segue seu ciclo atual. Não inventar uma fila de revisão que
+ainda não existe, permitir repular item bloqueado ou consumir uma fila encerrada.
+Se o produto passar a exigir acesso independente aos pulados antes de terminar a
+fila normal, tratar como mudança explícita de backend, fora deste complemento.
+
+Exemplo de uso: terça às 18h30, selecionar o bloco e escolher entre um Premium vigente
+e a próxima atividade do grupo Games. Ao concluir o Premium, Continuar mantém o
+fluxo direto; Voltar à fila usa o grupo escolhido, preservando a fila existente.
+No modo de revisão, a prévia identifica claramente que a próxima atividade foi pulada.
+
+Separar **planejar a preferência** de **iniciar sessão**:
+
+- A ocorrência pode guardar preferência por premium_period_id ou por group_id,
+  nunca reservar um queue_item_id para um horário futuro.
+- No MVP, essa escolha vale só para a ocorrência selecionada. Replicar semanalmente
+  exige ação explícita; selecionar hoje não altera todas as terças.
+- Selecionar card, fonte ou jogo não inicia o timer. Início sempre tem botão próprio.
+- Ao abrir/iniciar, revalidar período, grupo, fila, execução ativa e adequação. Se o
+  próximo item mudou, atualizar a prévia e explicar; não consumir a escolha antiga.
+- Preferência vencida/inativa permanece visível como indisponível, oferecendo outra
+  escolha, sem substituição silenciosa ou início agendado automático.
+- Durante execução, manter visível o timer único. Não permitir que outra seleção
+  crie sessão paralela; navegar na agenda continua permitido.
+
+RetroGames permanece disponível no módulo próprio. Esta escolha rápida não cria
+nova origem de execução: usa premium_direct ou o item real da fila selecionada.
+
+### Janela casual e horários familiares
+
+No bloco casual, classificar cada opção como recomendada, não adequada ao momento
+ou com perfil desconhecido. Premium online não vira recomendado por ser Premium.
+A próxima atividade da fila pode ser incompatível; mostrar essa informação sem
+pulá-la automaticamente e oferecer escolher outra fonte/grupo.
+
+Blocos de cardio/família mostram edição e contexto, sem seletor de jogo embutido.
+Os módulos gerais continuam acessíveis, preservando a natureza orientativa da rotina.
+
+### Mobile
+
+Card Hoje / Agora no topo, alternância Seg–Sex/Sáb–Dom e lista de blocos. Tocar em
+gameplay abre bottom sheet ou tela de detalhe com Premium/Fila do grupo, seleção,
+prévia e botão de início. Resumo semanal em cards com quebra de linha. Não copiar
+as três colunas do desktop nem acrescentar uma sexta aba à navegação atual.
+
+### Contrato e testes adicionais necessários
+
+- Preferência por ocorrência deve usar ID estável do bloco, data local de origem
+  e versão; um bloco 22h30–01h mantém a data em que começou.
+- A prévia de fila precisa ser somente leitura. Conferir o contrato existente de
+  activities/next antes de reutilizá-lo, pois ele apresenta/cria fila. Reutilizar a
+  listagem não mutante quando suficiente ou expor uma prévia específica, com
+  estados fila ausente/vazia/revisão. Apresentar/criar fila apenas por ação explícita.
+- Validar que abrir agenda, alternar grupos e salvar preferência não inicia sessão,
+  apresenta/consome item, recria fila nem registra pulo.
+- Cobrir troca do item entre prévia e início, Premium vencendo antes do bloco,
+  revisão bloqueada, concorrência entre dispositivos, contexto de retorno e fonte
+  incompatível com janela casual.
