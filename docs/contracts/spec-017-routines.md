@@ -128,3 +128,113 @@ salvar fonte com expected_version → consultar preview → iniciar com preview_
 request_id e duração explícita se Premium → recuperar timer pelo contrato existente.
 Em 409 stale_preview, substituir a prévia exibida; requerer nova ação de início,
 sem escolher automaticamente outra atividade. Em stale_routine_version, reler o plano.
+
+## Sessões associadas automaticamente — extensão aditiva de 2026-10-04
+
+Migration 0022. Inícios canônicos queue, premium_direct e retro_direct não exigem
+origin_date/block_id do cliente. O servidor associa uma **nova** sessão ao gameplay
+ativo em Schedule.starts_at, com fuso da rotina, revisão vigente no dia de origem,
+exceções, suspensão civil e intervalo `[starts_at, ends_at)`. Às 00h15, um bloco
+22h30–01h mantém a origem na véspera; às 01h00 já não há vínculo com esse bloco.
+Sem gameplay ativo, a execução inicia normalmente e routine_occurrence é null.
+Fila comum é gameplay apenas pelos grupos configurados, ou período Premium da
+sessão; não é classificada pelo nome do grupo ou pelo uso da tela Foco.
+
+A resposta de execução, incluindo recuperação, ganha:
+
+```json
+{
+  "routine_occurrence": {
+    "occurrence_id": "2026-10-10:2d2bcb15-32aa-4ed5-8c0b-a68a0f050327",
+    "block_id": "2d2bcb15-32aa-4ed5-8c0b-a68a0f050327",
+    "origin_date": "2026-10-10",
+    "revision_version": 1,
+    "timezone": "America/Sao_Paulo",
+    "kind": "gameplay",
+    "profile": "general",
+    "starts_at": "2026-10-10T22:30:00-03:00",
+    "ends_at": "2026-10-11T01:00:00-03:00"
+  },
+  "routine_requested_occurrence": null
+}
+```
+
+routine_requested_occurrence é a identidade da preferência enviada a routines/start/,
+com occurrence_id/block_id/origin_date. Ela pode diferir do bloco ativo, ou existir
+sem associação automática (início fora da janela ou fila não classificada). Inícios
+pelos módulos diretos retornam null nesse campo. Preferência não determina contagem.
+
+GET agenda/ aceita adicionalmente `sessions_page=1` (1–1.000.000). Cada ocorrência
+atual inclui sessions, sessions_pagination e session_totals. A raiz inclui as_of e
+recorded_occurrences. Essa segunda lista contém os vínculos históricos mesmo quando
+um ajuste cancelou/moveu a ocorrência atual ou o plano foi removido. Os campos
+anteriores da agenda/contexto/resumo permanecem disponíveis.
+
+Forma de cada recorded_occurrences:
+
+```json
+{
+  "occurrence_id": "2026-10-10:2d2bcb15-32aa-4ed5-8c0b-a68a0f050327",
+  "block_id": "2d2bcb15-32aa-4ed5-8c0b-a68a0f050327",
+  "origin_date": "2026-10-10",
+  "snapshots": [{"occurrence_id": "...", "revision_version": 1, "starts_at": "2026-10-10T22:30:00-03:00", "ends_at": "2026-10-11T01:00:00-03:00"}],
+  "sessions": [{
+    "execution_id": 601,
+    "activity_id": 101,
+    "activity_name": "Jogo manual",
+    "execution_origin": "premium_direct",
+    "state": "completed",
+    "starts_at": "2026-10-10T23:37:00-03:00",
+    "ends_at": "2026-10-11T01:37:00-03:00",
+    "expected_end_at": "2026-10-11T01:37:00-03:00",
+    "confirmed_seconds": 7200,
+    "open_estimate_seconds": 0,
+    "coverage": "complete",
+    "routine_occurrence": {"occurrence_id": "...", "origin_date": "2026-10-10"},
+    "routine_requested_occurrence": null
+  }],
+  "sessions_pagination": {"page": 1, "page_size": 50, "count": 1, "has_next": false},
+  "session_totals": {"confirmed_seconds": 7200, "open_estimate_seconds": 0}
+}
+```
+
+Os objetos abreviados acima estão completos nas
+[fixtures de sessões](spec-017-routine-sessions.json). Há cinco exemplos verificados,
+incluindo preferência diferente do bloco real. Fixtures originais atualizadas.
+IDs são ilustrativos/normalizados; instantes e identidades de bloco são dados de teste.
+
+Semântica:
+- Uma associação única por execução, gravada na mesma transação de início.
+- Retries retornam o vínculo original; sessões antigas ou inicialmente sem vínculo
+  nunca ganham associação por GET, conclusão ou retry. Não há backfill nesta migration.
+- Snapshot independente do plano e catálogo: data, ID, revisão, fuso, intervalos,
+  perfil, atividade e origem não são recalculados após edições futuras.
+- snapshots pode conter mais de um intervalo para o mesmo occurrence_id se ajustes
+  ocorreram entre sessões do mesmo dia. Cada sessão informa seu snapshot específico.
+- confirmed_seconds vem exclusivamente do fact canônico de conclusão com precisão.
+  É o total real da sessão vinculada, incluindo eventual ultrapassagem do bloco.
+  Não é recortado ao planejamento nem comprova cumprimento integral do bloco.
+- open_estimate_seconds é estimativa limitada ao as_of/término esperado. GET não
+  conclui a sessão atrasada; tempo estimado nunca entra no confirmado.
+- Cancelada/expirada ou registro sem fact preciso não fabrica tempo confirmado;
+  coverage pode ser insufficient. Sem Schedule nem fact, state é unavailable.
+- Uma associação continua disponível após exclusão do plano e após exclusão de
+  Schedule; se existir GoalCompletion preciso, seu tempo confirmado é preservado.
+- Cada página tem até 50 sessões por ocorrência. count e session_totals abrangem
+  todas as sessões, mesmo quando a página está vazia. Ordenação: início, execution_id.
+- Consulta inclui ocorrências cujos snapshots cruzam o intervalo civil **ou** cuja
+  data de origem está no intervalo; detalhes de sessão não são recortados por dia.
+- sessions nas occurrences e recorded_occurrences representam os mesmos vínculos.
+  Não somar ambas as listas; deduplicar por execution_id e unir por occurrence_id.
+- Resumo civil permanece calculado pelos facts/interseções. No exemplo de 23h37 a
+  01h37, a agenda mostra 7200s na ocorrência de sábado; resumo registra 23min dentro
+  no sábado, 60min dentro no domingo e 37min fora. Não adicionar session_totals ao resumo.
+
+Para Flutter: renderizar sessões nos cards usando occurrence_id; usar snapshots para
+ocorrências históricas ausentes da lista atual ou com horários alterados. Não mover
+visualmente o registro para um intervalo editado só porque o ID continua igual.
+Atualizar a agenda após início,
+conclusão/reconciliação canônica e recuperação, mantendo o timer único. Enquanto
+aberta, atualizar estimativa conforme as_of ou reler a agenda; não alterar a identidade
+pelo horário local. Carregar páginas adicionais com sessions_page, deduplicando IDs.
+A agenda não precisa chamar activities/next nem enviar bloco em inícios diretos.

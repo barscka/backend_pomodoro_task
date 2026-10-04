@@ -225,6 +225,13 @@ class ActivityQueueItemSerializer(QueueContextSerializerMixin, serializers.Model
 
 
 class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.ModelSerializer):
+    routine_occurrence = serializers.SerializerMethodField()
+    routine_requested_occurrence = serializers.JSONField(read_only=True)
+
+    def get_routine_occurrence(self, obj):
+        from .services.routine_sessions import execution_occurrence
+        return execution_occurrence(obj)
+
     activity = ActivitySerializer(read_only=True)
     queue_id = serializers.SerializerMethodField()
     queue_item_id = serializers.IntegerField(read_only=True, allow_null=True)
@@ -258,6 +265,8 @@ class ActivityExecutionSerializer(QueueContextSerializerMixin, serializers.Model
     class Meta:
         model = Schedule
         fields = [
+            'routine_occurrence',
+            'routine_requested_occurrence',
             'execution_id',
             'id',
             'queue_id',

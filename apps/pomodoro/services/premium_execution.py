@@ -14,6 +14,8 @@ from .direct_execution import payload_hash
 def start_premium(*, period_id, scope_key, duration_minutes, request_id, return_group_id=None, continued_from_id=None, expected_version=None):
     if not getattr(settings, 'PREMIUM_DIRECT_START_ENABLED', False):
         raise ActivityExecutionConflict('premium_direct_disabled', 'Novos inícios premium diretos ainda não estão liberados.')
+    from .routine_sessions import associate_started_session, lock_plan_for_start
+    routine_plan = lock_plan_for_start(scope_key)
     payload = {'period_id': int(period_id), 'duration_minutes': int(duration_minutes), 'return_group_id': return_group_id, 'continued_from_id': continued_from_id}
     request_payload_hash = payload_hash(payload)
     existing_request = ExecutionIdempotency.objects.select_for_update().filter(scope_key=scope_key, request_id=request_id).first()
@@ -86,4 +88,5 @@ def start_premium(*, period_id, scope_key, duration_minutes, request_id, return_
         if record.payload_hash == request_payload_hash and record.schedule:
             return record.schedule, False
         raise ActivityExecutionConflict('idempotency_payload_conflict', 'A chave já foi usada com outro payload.')
+    associate_started_session(schedule, plan=routine_plan)
     return schedule, True

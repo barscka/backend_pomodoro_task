@@ -418,3 +418,20 @@ Ainda não entregues: telas/integração Flutter, deploy, pausa/retomada, automa
 notificações de transição e calendários externos. Seleção não reserva item futuro.
 Uma atividade incompatível continua iniciável pelas regras canônicas; a rotina
 não encerra, bloqueia por horário nem altera duração padrão da fila.
+
+## 14. Associação automática de sessões — 2026-10-04
+
+Inícios queue (grupos explicitamente configurados/período Premium), premium_direct
+ e retro_direct agora associam a sessão ao bloco de gameplay ativo em starts_at.
+A data de origem sobrevive à madrugada, retries e ultrapassagem do horário final.
+Sem janela ativa, a sessão segue normal sem vínculo. Estudos/trabalho não são
+classificados como gameplay pelo nome ou pela tela Foco.
+
+Migration aditiva 0022, snapshot histórico por execução, sem backfill nem banco real.
+Agenda retorna sessões por ocorrência e recorded_occurrences para manter registros
+quando o planejamento foi ajustado/cancelado. Tempo confirmado e estimativa aberta
+são distintos; o resumo civil permanece independente, sem duplicação.
+
+Contrato aditivo e fixtures em docs/contracts/spec-017-routines.md e
+spec-017-routine-sessions.json. Evidências, riscos e integração Flutter no
+[handoff da associação](../handoffs/07_handoff_sessoes_na_agenda.md).

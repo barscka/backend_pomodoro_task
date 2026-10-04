@@ -129,3 +129,7 @@ class TrackingSettingsSerializer(VersionSerializer):
     daily_reference_minutes = serializers.IntegerField(min_value=1, max_value=1440, required=False)
     group_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, max_length=1000)
     reference_source = serializers.ChoiceField(choices=['fixed_daily', 'routine'], required=False)
+
+
+class AgendaSerializer(IntervalSerializer):
+    sessions_page = serializers.IntegerField(min_value=1, max_value=1000000, default=1)

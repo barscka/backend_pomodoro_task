@@ -1,0 +1,1187 @@
+{
+  "contract_version": 1,
+  "examples": {
+    "saturday_occurrence_open_sunday": {
+      "version": 1,
+      "timezone": "America/Sao_Paulo",
+      "days": [
+        {
+          "date": "2026-10-11",
+          "state": "planned"
+        }
+      ],
+      "occurrences": [
+        {
+          "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-10T22:30:00-03:00",
+          "ends_at": "2026-10-11T01:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 9000,
+          "sessions": [
+            {
+              "execution_id": 601,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "running",
+              "starts_at": "2026-10-11T02:37:00Z",
+              "ends_at": null,
+              "expected_end_at": "2026-10-11T04:37:00Z",
+              "confirmed_seconds": 0,
+              "open_estimate_seconds": 2280,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "origin_date": "2026-10-10",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "general",
+                "starts_at": "2026-10-11T01:30:00Z",
+                "ends_at": "2026-10-11T04:00:00Z"
+              },
+              "routine_requested_occurrence": null
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 2280
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:5ef04ab6-1c35-54be-8034-cb60fa9bfd8c",
+          "block_id": "5ef04ab6-1c35-54be-8034-cb60fa9bfd8c",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "focus",
+          "starts_at": "2026-10-11T07:00:00-03:00",
+          "ends_at": "2026-10-11T09:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 7200,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "interruptible",
+          "starts_at": "2026-10-11T09:00:00-03:00",
+          "ends_at": "2026-10-11T12:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 10800,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:085dc6e2-c57e-5585-8aa6-9d297797f191",
+          "block_id": "085dc6e2-c57e-5585-8aa6-9d297797f191",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-11T13:00:00-03:00",
+          "ends_at": "2026-10-11T14:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 5400,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+          "block_id": "64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-11T14:30:00-03:00",
+          "ends_at": "2026-10-11T18:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:0d27dbd0-86c7-557e-bbcc-08e5fda40d73",
+          "block_id": "0d27dbd0-86c7-557e-bbcc-08e5fda40d73",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "cardio",
+          "profile": "general",
+          "starts_at": "2026-10-11T18:00:00-03:00",
+          "ends_at": "2026-10-11T18:30:00-03:00",
+          "cardio_expectation": {
+            "minimum_minutes": 15,
+            "maximum_minutes": 30
+          },
+          "duration_seconds": 1800,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:cd774581-670f-54f4-aee3-22240aa60e83",
+          "block_id": "cd774581-670f-54f4-aee3-22240aa60e83",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-11T19:00:00-03:00",
+          "ends_at": "2026-10-11T22:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:0bc66e27-7240-5b4b-aa7d-38db0c4a59c5",
+          "block_id": "0bc66e27-7240-5b4b-aa7d-38db0c4a59c5",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-11T22:30:00-03:00",
+          "ends_at": "2026-10-12T01:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 9000,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        }
+      ],
+      "as_of": "2026-10-11T00:15:00-03:00",
+      "recorded_occurrences": [
+        {
+          "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "origin_date": "2026-10-10",
+          "snapshots": [
+            {
+              "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+              "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+              "origin_date": "2026-10-10",
+              "revision_version": 1,
+              "timezone": "America/Sao_Paulo",
+              "kind": "gameplay",
+              "profile": "general",
+              "starts_at": "2026-10-11T01:30:00Z",
+              "ends_at": "2026-10-11T04:00:00Z"
+            }
+          ],
+          "sessions": [
+            {
+              "execution_id": 601,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "running",
+              "starts_at": "2026-10-11T02:37:00Z",
+              "ends_at": null,
+              "expected_end_at": "2026-10-11T04:37:00Z",
+              "confirmed_seconds": 0,
+              "open_estimate_seconds": 2280,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "origin_date": "2026-10-10",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "general",
+                "starts_at": "2026-10-11T01:30:00Z",
+                "ends_at": "2026-10-11T04:00:00Z"
+              },
+              "routine_requested_occurrence": null
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 2280
+          }
+        }
+      ]
+    },
+    "completed_overrun": {
+      "version": 1,
+      "timezone": "America/Sao_Paulo",
+      "days": [
+        {
+          "date": "2026-10-10",
+          "state": "planned"
+        },
+        {
+          "date": "2026-10-11",
+          "state": "planned"
+        }
+      ],
+      "occurrences": [
+        {
+          "occurrence_id": "2026-10-09:cc4afdfa-f2f9-573b-8328-3940b45267c4",
+          "block_id": "cc4afdfa-f2f9-573b-8328-3940b45267c4",
+          "origin_date": "2026-10-09",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-09T22:30:00-03:00",
+          "ends_at": "2026-10-10T01:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 9000,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-10:61745a08-4839-53ad-8b1f-1ee5003c76b8",
+          "block_id": "61745a08-4839-53ad-8b1f-1ee5003c76b8",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "focus",
+          "starts_at": "2026-10-10T07:00:00-03:00",
+          "ends_at": "2026-10-10T09:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 7200,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-10:f1de708c-64a5-5ced-8400-b38c819da467",
+          "block_id": "f1de708c-64a5-5ced-8400-b38c819da467",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "interruptible",
+          "starts_at": "2026-10-10T09:00:00-03:00",
+          "ends_at": "2026-10-10T12:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 10800,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-10:f662f484-2486-51bf-9dba-1d52737967c0",
+          "block_id": "f662f484-2486-51bf-9dba-1d52737967c0",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-10T13:00:00-03:00",
+          "ends_at": "2026-10-10T14:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 5400,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-10:ba31f56c-838b-530a-a95f-49459d984a6d",
+          "block_id": "ba31f56c-838b-530a-a95f-49459d984a6d",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-10T14:30:00-03:00",
+          "ends_at": "2026-10-10T18:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-10:78b0d060-f0e8-55c6-935d-45c76bf6e815",
+          "block_id": "78b0d060-f0e8-55c6-935d-45c76bf6e815",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "cardio",
+          "profile": "general",
+          "starts_at": "2026-10-10T18:00:00-03:00",
+          "ends_at": "2026-10-10T18:30:00-03:00",
+          "cardio_expectation": {
+            "minimum_minutes": 15,
+            "maximum_minutes": 30
+          },
+          "duration_seconds": 1800,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-10:fc57157c-444e-50e6-85cd-2dee85ae4795",
+          "block_id": "fc57157c-444e-50e6-85cd-2dee85ae4795",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-10T19:00:00-03:00",
+          "ends_at": "2026-10-10T22:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-10T22:30:00-03:00",
+          "ends_at": "2026-10-11T01:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 9000,
+          "sessions": [
+            {
+              "execution_id": 601,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "completed",
+              "starts_at": "2026-10-11T02:37:00Z",
+              "ends_at": "2026-10-11T04:37:00Z",
+              "expected_end_at": "2026-10-11T04:37:00Z",
+              "confirmed_seconds": 7200,
+              "open_estimate_seconds": 0,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "origin_date": "2026-10-10",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "general",
+                "starts_at": "2026-10-11T01:30:00Z",
+                "ends_at": "2026-10-11T04:00:00Z"
+              },
+              "routine_requested_occurrence": null
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 7200,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:5ef04ab6-1c35-54be-8034-cb60fa9bfd8c",
+          "block_id": "5ef04ab6-1c35-54be-8034-cb60fa9bfd8c",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "focus",
+          "starts_at": "2026-10-11T07:00:00-03:00",
+          "ends_at": "2026-10-11T09:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 7200,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "interruptible",
+          "starts_at": "2026-10-11T09:00:00-03:00",
+          "ends_at": "2026-10-11T12:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 10800,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:085dc6e2-c57e-5585-8aa6-9d297797f191",
+          "block_id": "085dc6e2-c57e-5585-8aa6-9d297797f191",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-11T13:00:00-03:00",
+          "ends_at": "2026-10-11T14:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 5400,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+          "block_id": "64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-11T14:30:00-03:00",
+          "ends_at": "2026-10-11T18:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:0d27dbd0-86c7-557e-bbcc-08e5fda40d73",
+          "block_id": "0d27dbd0-86c7-557e-bbcc-08e5fda40d73",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "cardio",
+          "profile": "general",
+          "starts_at": "2026-10-11T18:00:00-03:00",
+          "ends_at": "2026-10-11T18:30:00-03:00",
+          "cardio_expectation": {
+            "minimum_minutes": 15,
+            "maximum_minutes": 30
+          },
+          "duration_seconds": 1800,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:cd774581-670f-54f4-aee3-22240aa60e83",
+          "block_id": "cd774581-670f-54f4-aee3-22240aa60e83",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-11T19:00:00-03:00",
+          "ends_at": "2026-10-11T22:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:0bc66e27-7240-5b4b-aa7d-38db0c4a59c5",
+          "block_id": "0bc66e27-7240-5b4b-aa7d-38db0c4a59c5",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-11T22:30:00-03:00",
+          "ends_at": "2026-10-12T01:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 9000,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        }
+      ],
+      "as_of": "2026-10-11T01:37:00-03:00",
+      "recorded_occurrences": [
+        {
+          "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "origin_date": "2026-10-10",
+          "snapshots": [
+            {
+              "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+              "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+              "origin_date": "2026-10-10",
+              "revision_version": 1,
+              "timezone": "America/Sao_Paulo",
+              "kind": "gameplay",
+              "profile": "general",
+              "starts_at": "2026-10-11T01:30:00Z",
+              "ends_at": "2026-10-11T04:00:00Z"
+            }
+          ],
+          "sessions": [
+            {
+              "execution_id": 601,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "completed",
+              "starts_at": "2026-10-11T02:37:00Z",
+              "ends_at": "2026-10-11T04:37:00Z",
+              "expected_end_at": "2026-10-11T04:37:00Z",
+              "confirmed_seconds": 7200,
+              "open_estimate_seconds": 0,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "origin_date": "2026-10-10",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "general",
+                "starts_at": "2026-10-11T01:30:00Z",
+                "ends_at": "2026-10-11T04:00:00Z"
+              },
+              "routine_requested_occurrence": null
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 7200,
+            "open_estimate_seconds": 0
+          }
+        }
+      ]
+    },
+    "civil_summary": {
+      "timezone": "America/Sao_Paulo",
+      "date_from": "2026-10-10",
+      "date_to": "2026-10-11",
+      "as_of": "2026-10-11T01:37:00-03:00",
+      "days": [
+        {
+          "date": "2026-10-10",
+          "state": "planned",
+          "known": true,
+          "general_seconds": 28800,
+          "interruptible_seconds": 10800,
+          "family_seconds": 18000,
+          "cardio_seconds": 1800,
+          "reference_seconds": 39600,
+          "confirmed_inside_seconds": 1380,
+          "confirmed_interruptible_seconds": 0,
+          "confirmed_outside_seconds": 0,
+          "confirmed_uncovered_seconds": 0,
+          "open_estimate_seconds": 0,
+          "insufficient_precision_count": 0,
+          "coverage": "complete"
+        },
+        {
+          "date": "2026-10-11",
+          "state": "planned",
+          "known": true,
+          "general_seconds": 28800,
+          "interruptible_seconds": 10800,
+          "family_seconds": 18000,
+          "cardio_seconds": 1800,
+          "reference_seconds": 39600,
+          "confirmed_inside_seconds": 3600,
+          "confirmed_interruptible_seconds": 0,
+          "confirmed_outside_seconds": 2220,
+          "confirmed_uncovered_seconds": 0,
+          "open_estimate_seconds": 0,
+          "insufficient_precision_count": 0,
+          "coverage": "complete"
+        }
+      ],
+      "totals": {
+        "general_seconds": 57600,
+        "interruptible_seconds": 21600,
+        "family_seconds": 36000,
+        "cardio_seconds": 3600,
+        "confirmed_inside_seconds": 4980,
+        "confirmed_interruptible_seconds": 0,
+        "confirmed_outside_seconds": 2220,
+        "confirmed_uncovered_seconds": 0,
+        "open_estimate_seconds": 0,
+        "insufficient_precision_count": 0
+      },
+      "coverage": "complete"
+    },
+    "requested_vs_actual_execution_fields": {
+      "execution_id": 602,
+      "execution_origin": "premium_direct",
+      "starts_at": "2026-10-11T13:00:00Z",
+      "routine_occurrence": {
+        "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+        "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+        "origin_date": "2026-10-11",
+        "revision_version": 1,
+        "timezone": "America/Sao_Paulo",
+        "kind": "gameplay",
+        "profile": "interruptible",
+        "starts_at": "2026-10-11T09:00:00-03:00",
+        "ends_at": "2026-10-11T12:00:00-03:00"
+      },
+      "routine_requested_occurrence": {
+        "occurrence_id": "2026-10-11:64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+        "origin_date": "2026-10-11",
+        "block_id": "64d01d65-84e9-5fb9-a4da-ad4af03137ae"
+      }
+    },
+    "agenda_with_requested_vs_actual": {
+      "version": 2,
+      "timezone": "America/Sao_Paulo",
+      "days": [
+        {
+          "date": "2026-10-11",
+          "state": "planned"
+        }
+      ],
+      "occurrences": [
+        {
+          "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "origin_date": "2026-10-10",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-10T22:30:00-03:00",
+          "ends_at": "2026-10-11T01:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 9000,
+          "sessions": [
+            {
+              "execution_id": 601,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "completed",
+              "starts_at": "2026-10-11T02:37:00Z",
+              "ends_at": "2026-10-11T04:37:00Z",
+              "expected_end_at": "2026-10-11T04:37:00Z",
+              "confirmed_seconds": 7200,
+              "open_estimate_seconds": 0,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "origin_date": "2026-10-10",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "general",
+                "starts_at": "2026-10-11T01:30:00Z",
+                "ends_at": "2026-10-11T04:00:00Z"
+              },
+              "routine_requested_occurrence": null
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 7200,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:5ef04ab6-1c35-54be-8034-cb60fa9bfd8c",
+          "block_id": "5ef04ab6-1c35-54be-8034-cb60fa9bfd8c",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "focus",
+          "starts_at": "2026-10-11T07:00:00-03:00",
+          "ends_at": "2026-10-11T09:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 7200,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "interruptible",
+          "starts_at": "2026-10-11T09:00:00-03:00",
+          "ends_at": "2026-10-11T12:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 10800,
+          "sessions": [
+            {
+              "execution_id": 602,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "running",
+              "starts_at": "2026-10-11T13:00:00Z",
+              "ends_at": null,
+              "expected_end_at": "2026-10-11T14:00:00Z",
+              "confirmed_seconds": 0,
+              "open_estimate_seconds": 0,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+                "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+                "origin_date": "2026-10-11",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "interruptible",
+                "starts_at": "2026-10-11T12:00:00Z",
+                "ends_at": "2026-10-11T15:00:00Z"
+              },
+              "routine_requested_occurrence": {
+                "occurrence_id": "2026-10-11:64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+                "origin_date": "2026-10-11",
+                "block_id": "64d01d65-84e9-5fb9-a4da-ad4af03137ae"
+              }
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:085dc6e2-c57e-5585-8aa6-9d297797f191",
+          "block_id": "085dc6e2-c57e-5585-8aa6-9d297797f191",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-11T13:00:00-03:00",
+          "ends_at": "2026-10-11T14:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 5400,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+          "block_id": "64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-11T14:30:00-03:00",
+          "ends_at": "2026-10-11T18:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:0d27dbd0-86c7-557e-bbcc-08e5fda40d73",
+          "block_id": "0d27dbd0-86c7-557e-bbcc-08e5fda40d73",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "cardio",
+          "profile": "general",
+          "starts_at": "2026-10-11T18:00:00-03:00",
+          "ends_at": "2026-10-11T18:30:00-03:00",
+          "cardio_expectation": {
+            "minimum_minutes": 15,
+            "maximum_minutes": 30
+          },
+          "duration_seconds": 1800,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:cd774581-670f-54f4-aee3-22240aa60e83",
+          "block_id": "cd774581-670f-54f4-aee3-22240aa60e83",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "family",
+          "profile": "general",
+          "starts_at": "2026-10-11T19:00:00-03:00",
+          "ends_at": "2026-10-11T22:30:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 12600,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:0bc66e27-7240-5b4b-aa7d-38db0c4a59c5",
+          "block_id": "0bc66e27-7240-5b4b-aa7d-38db0c4a59c5",
+          "origin_date": "2026-10-11",
+          "revision_version": 1,
+          "kind": "gameplay",
+          "profile": "general",
+          "starts_at": "2026-10-11T22:30:00-03:00",
+          "ends_at": "2026-10-12T01:00:00-03:00",
+          "cardio_expectation": null,
+          "duration_seconds": 9000,
+          "sessions": [],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 0,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        }
+      ],
+      "as_of": "2026-10-11T10:00:00-03:00",
+      "recorded_occurrences": [
+        {
+          "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+          "origin_date": "2026-10-10",
+          "snapshots": [
+            {
+              "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+              "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+              "origin_date": "2026-10-10",
+              "revision_version": 1,
+              "timezone": "America/Sao_Paulo",
+              "kind": "gameplay",
+              "profile": "general",
+              "starts_at": "2026-10-11T01:30:00Z",
+              "ends_at": "2026-10-11T04:00:00Z"
+            }
+          ],
+          "sessions": [
+            {
+              "execution_id": 601,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "completed",
+              "starts_at": "2026-10-11T02:37:00Z",
+              "ends_at": "2026-10-11T04:37:00Z",
+              "expected_end_at": "2026-10-11T04:37:00Z",
+              "confirmed_seconds": 7200,
+              "open_estimate_seconds": 0,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-10:c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "block_id": "c1b6bdec-405b-5274-82f8-c4938fba7271",
+                "origin_date": "2026-10-10",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "general",
+                "starts_at": "2026-10-11T01:30:00Z",
+                "ends_at": "2026-10-11T04:00:00Z"
+              },
+              "routine_requested_occurrence": null
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 7200,
+            "open_estimate_seconds": 0
+          }
+        },
+        {
+          "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+          "origin_date": "2026-10-11",
+          "snapshots": [
+            {
+              "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+              "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+              "origin_date": "2026-10-11",
+              "revision_version": 1,
+              "timezone": "America/Sao_Paulo",
+              "kind": "gameplay",
+              "profile": "interruptible",
+              "starts_at": "2026-10-11T12:00:00Z",
+              "ends_at": "2026-10-11T15:00:00Z"
+            }
+          ],
+          "sessions": [
+            {
+              "execution_id": 602,
+              "activity_id": 101,
+              "activity_name": "Jogo manual",
+              "execution_origin": "premium_direct",
+              "state": "running",
+              "starts_at": "2026-10-11T13:00:00Z",
+              "ends_at": null,
+              "expected_end_at": "2026-10-11T14:00:00Z",
+              "confirmed_seconds": 0,
+              "open_estimate_seconds": 0,
+              "coverage": "complete",
+              "routine_occurrence": {
+                "occurrence_id": "2026-10-11:376f75ce-ed8b-565c-a81f-7755cb8939cf",
+                "block_id": "376f75ce-ed8b-565c-a81f-7755cb8939cf",
+                "origin_date": "2026-10-11",
+                "revision_version": 1,
+                "timezone": "America/Sao_Paulo",
+                "kind": "gameplay",
+                "profile": "interruptible",
+                "starts_at": "2026-10-11T12:00:00Z",
+                "ends_at": "2026-10-11T15:00:00Z"
+              },
+              "routine_requested_occurrence": {
+                "occurrence_id": "2026-10-11:64d01d65-84e9-5fb9-a4da-ad4af03137ae",
+                "origin_date": "2026-10-11",
+                "block_id": "64d01d65-84e9-5fb9-a4da-ad4af03137ae"
+              }
+            }
+          ],
+          "sessions_pagination": {
+            "page": 1,
+            "page_size": 50,
+            "count": 1,
+            "has_next": false
+          },
+          "session_totals": {
+            "confirmed_seconds": 0,
+            "open_estimate_seconds": 0
+          }
+        }
+      ]
+    }
+  }
+}

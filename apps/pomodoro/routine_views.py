@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from rest_framework_api_key.permissions import HasAPIKey
 
 from .routine_serializers import (
-    ActivityPreferenceSerializer, ExceptionSerializer, IdentitySerializer, IntervalSerializer,
+    ActivityPreferenceSerializer, AgendaSerializer, ExceptionSerializer, IdentitySerializer, IntervalSerializer,
     RevisionSerializer, SelectionSerializer, StartSerializer, SuspensionSerializer, TemplateSerializer,
 )
 from .serializers import ActivityExecutionSerializer
 from .services.activity_execution import ActivityExecutionConflict, build_scope_key
 from .services.routine_reporting import summary
+from .services.routine_sessions import agenda
 from .services.routine_selection import preview, start_from_preview
 from .services import routines
 
@@ -29,7 +30,7 @@ class RoutineViewSet(viewsets.GenericViewSet):
         data = dict(self.request.query_params.items()) if query else self.request.data
         serializer = cls(data=data)
         if not serializer.is_valid():
-            raise routines.RoutineError('invalid_interval' if cls == IntervalSerializer else 'invalid_routine',
+            raise routines.RoutineError('invalid_interval' if cls in (IntervalSerializer, AgendaSerializer) else 'invalid_routine',
                                         'Dados inválidos.', fields=serializer.errors)
         return serializer.validated_data
 
@@ -59,7 +60,7 @@ class RoutineViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['get'])
     def agenda(self, request):
-        return Response(routines.expand(self.scope(), **self.validated(IntervalSerializer, query=True)))
+        return Response(agenda(self.scope(), **self.validated(AgendaSerializer, query=True)))
 
     @action(detail=False, methods=['get'])
     def context(self, request):
