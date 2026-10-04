@@ -221,6 +221,7 @@ class Activity(models.Model):
 
 
 class Schedule(models.Model):
+    routine_requested_occurrence = models.JSONField(null=True, default=None)
     ORIGIN_QUEUE = 'queue'
     ORIGIN_PREMIUM_DIRECT = 'premium_direct'
     ORIGIN_RETRO_DIRECT = 'retro_direct'
@@ -864,3 +865,26 @@ class RoutineStartRequest(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['plan', 'request_id'], name='routine_start_request_unique')]
+
+
+class RoutineSessionAssociation(models.Model):
+    """Start-time evidence; independent of mutable plans and catalog records."""
+    schedule = models.OneToOneField(Schedule, null=True, on_delete=models.SET_NULL, related_name='routine_association')
+    source_schedule_id = models.PositiveBigIntegerField(unique=True)
+    scope_key = models.CharField(max_length=64)
+    block_id = models.UUIDField()
+    origin_date = models.DateField()
+    revision_version = models.PositiveIntegerField()
+    timezone = models.CharField(max_length=64)
+    occurrence_starts_at = models.DateTimeField()
+    occurrence_ends_at = models.DateTimeField()
+    profile = models.CharField(max_length=16)
+    activity_id_snapshot = models.PositiveBigIntegerField()
+    activity_name_snapshot = models.CharField(max_length=100)
+    execution_origin = models.CharField(max_length=20, choices=Schedule.ORIGIN_CHOICES)
+    session_starts_at = models.DateTimeField()
+    requested_occurrence = models.JSONField(null=True, default=None)
+
+    class Meta:
+        indexes = [models.Index(fields=['scope_key', 'origin_date', 'block_id'], name='routine_session_scope_day_idx')]
+        constraints = [models.CheckConstraint(condition=Q(occurrence_ends_at__gt=models.F('occurrence_starts_at')) & Q(session_starts_at__gte=models.F('occurrence_starts_at'), session_starts_at__lt=models.F('occurrence_ends_at')), name='routine_session_inside_start')]

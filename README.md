@@ -437,3 +437,14 @@ DJANGO_SETTINGS_MODULE=config.settings.test .venv/bin/python manage.py test --no
 Para locks, usar exclusivamente PostgreSQL descartável com
 `config.settings.postgres_concurrency` e variáveis TEST_POSTGRES_*; nunca apontar
 esse perfil para um banco compartilhado. Os comandos e resultados estão no handoff.
+
+### Sessões nos blocos da rotina
+
+Inícios de fila de gameplay, Premium e Retro associam automaticamente a execução
+ao bloco ativo no instante canônico de início. A agenda mostra sessões por ocorrência,
+com snapshots históricos, tempo confirmado e estimativa aberta separados. Não é
+necessário enviar bloco/dia nos inícios diretos. Resumo civil preservado.
+
+Migration aditiva **0022**, sem backfill; não aplicada ao banco real nesta task.
+[Contrato e exemplos](docs/contracts/spec-017-routines.md) e
+[handoff Flutter](docs/handoffs/07_handoff_sessoes_na_agenda.md).

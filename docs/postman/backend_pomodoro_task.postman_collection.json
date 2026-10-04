@@ -1575,7 +1575,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/routines/agenda/?date_from={{routine_date_from}}&date_to={{routine_date_to}}",
+              "raw": "{{base_url}}/routines/agenda/?date_from={{routine_date_from}}&date_to={{routine_date_to}}&sessions_page=1",
               "host": [
                 "{{base_url}}"
               ],
@@ -1592,9 +1592,14 @@
                 {
                   "key": "date_to",
                   "value": "{{routine_date_to}}"
+                },
+                {
+                  "key": "sessions_page",
+                  "value": "1"
                 }
               ]
-            }
+            },
+            "description": "Agenda com sessões por ocorrência, snapshots históricos e totais separados. sessions_page pagina 50 sessões por ocorrência. Não somar occurrences e recorded_occurrences."
           }
         },
         {

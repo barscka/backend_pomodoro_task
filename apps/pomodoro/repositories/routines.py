@@ -21,3 +21,16 @@ def canonical_queue_item(scope_key, group_id):
     if not item:
         item = items.filter(state=ActivityQueueItem.STATE_PENDING).order_by('position').first()
     return queue, item
+
+
+def associations_for_window(scope, start, end, date_from, date_to):
+    from django.db.models import Q
+    from apps.pomodoro.models import RoutineSessionAssociation
+    return RoutineSessionAssociation.objects.filter(scope_key=scope).filter(
+        Q(occurrence_starts_at__lt=end, occurrence_ends_at__gt=start) | Q(origin_date__range=(date_from, date_to))
+    ).select_related('schedule').order_by('session_starts_at', 'source_schedule_id')
+
+
+def completion_facts_for(scope, schedule_ids):
+    from apps.pomodoro.models import GoalCompletion
+    return GoalCompletion.objects.filter(scope_key=scope, source_schedule_id__in=schedule_ids)

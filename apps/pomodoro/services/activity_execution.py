@@ -125,6 +125,8 @@ def start_activity(
     queue_item: ActivityQueueItem,
     scope_key: str,
 ) -> tuple[Schedule, bool]:
+    from .routine_sessions import associate_started_session, lock_plan_for_start
+    routine_plan = lock_plan_for_start(scope_key)
     now = timezone.now()
     queue_item = (
         ActivityQueueItem.objects.select_related('queue__group', 'activity__category')
@@ -322,6 +324,7 @@ def start_activity(
         schedule=schedule,
         start_time=now,
     )
+    associate_started_session(schedule, plan=routine_plan)
     return schedule, True
 
 

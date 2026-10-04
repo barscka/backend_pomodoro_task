@@ -151,5 +151,12 @@ def start_from_preview(scope, data):
         if schedule.return_group_id is None:
             schedule.return_group_id = selection.group_id
             schedule.save(update_fields=['return_group_id'])
+    if created:
+        requested = {'occurrence_id': f"{data['origin_date']}:{data['block_id']}",
+                     'origin_date': data['origin_date'].isoformat(), 'block_id': str(data['block_id'])}
+        schedule.routine_requested_occurrence = requested
+        schedule.save(update_fields=['routine_requested_occurrence'])
+        from apps.pomodoro.models import RoutineSessionAssociation
+        RoutineSessionAssociation.objects.filter(schedule=schedule).update(requested_occurrence=requested)
     RoutineStartRequest.objects.create(plan=plan, request_id=data['request_id'], payload_hash=fingerprint, schedule=schedule)
     return schedule, created

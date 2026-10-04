@@ -38,6 +38,8 @@ def start_retro(*, retro_game_id, scope_key, duration_minutes, request_id,
     if return_group_id and not Group.objects.filter(pk=return_group_id).exists():
         raise ActivityExecutionConflict('return_group_not_found', 'Grupo de retorno não encontrado.')
 
+    from .routine_sessions import associate_started_session, lock_plan_for_start
+    routine_plan = lock_plan_for_start(scope_key)
     payload = {
         'retro_game_id': int(retro_game_id),
         'duration_minutes': int(duration_minutes),
@@ -133,4 +135,5 @@ def start_retro(*, retro_game_id, scope_key, duration_minutes, request_id,
         if record.payload_hash == request_payload_hash and record.schedule:
             return record.schedule, False
         raise ActivityExecutionConflict('idempotency_payload_conflict', 'A chave já foi usada com outro payload.')
+    associate_started_session(schedule, plan=routine_plan)
     return schedule, True
