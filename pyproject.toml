@@ -15,6 +15,7 @@ apscheduler = "^3.11.0"
 gunicorn = "^23.0.0"
 djangorestframework-api-key = "^3.1.0"
 psycopg = {extras = ["binary"], version = "^3.3.4"}
+django-import-export = "4.4.1"
 
 
 [build-system]
