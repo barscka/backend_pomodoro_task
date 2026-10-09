@@ -112,6 +112,7 @@ def _eligible_premiums(queue: ActivityQueue) -> list[Activity]:
         premium_from__lte=timezone.localdate(),
         premium_until__gte=timezone.localdate(),
         category__isnull=False,
+        movie__isnull=True,
     ).order_by('id')
     if not queue.group.is_default:
         candidates = candidates.filter(category__group=queue.group)
@@ -126,9 +127,6 @@ def _expire_foreign_items(
     queue: ActivityQueue,
     items: list[ActivityQueueItem],
 ) -> int:
-    if queue.group.is_default:
-        return 0
-
     protected_item_ids = set(
         Schedule.objects.filter(
             queue_item__queue=queue,
@@ -353,7 +351,7 @@ def reconcile_activity(activity: Activity, *, previous: dict[str, object] | None
     queues = list(
         ActivityQueue.objects.select_for_update()
         .select_related('group')
-        .filter(state=ActivityQueue.STATE_ACTIVE, mode=ActivityQueue.MODE_NORMAL)
+        .filter(state=ActivityQueue.STATE_ACTIVE)
         .order_by('id')
     )
     changed = False
@@ -361,14 +359,17 @@ def reconcile_activity(activity: Activity, *, previous: dict[str, object] | None
         item = queue.items.filter(activity=activity).first()
         eligible = activity_is_eligible(activity, queue.group)
         if item:
-            if not eligible and item.state in [
+            has_open_session = Schedule.objects.filter(
+                queue_item=item, state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING],
+            ).exists()
+            if not eligible and not has_open_session and item.state in [
                 ActivityQueueItem.STATE_PENDING,
                 ActivityQueueItem.STATE_PRESENTED,
             ]:
                 item.state = ActivityQueueItem.STATE_EXPIRED
                 item.save(update_fields=['state'])
                 changed = True
-        elif eligible and not activity.is_premium_active:
+        elif queue.mode == ActivityQueue.MODE_NORMAL and eligible and not activity.is_premium_active:
             _insert_randomly(queue, activity)
             changed = True
 

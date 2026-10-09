@@ -1,8 +1,8 @@
 ---
 spec_id: SPEC-018
 titulo: Catálogo de filmes e roleta do Oscar
-status: PROPOSED
-fase: PLANEJAMENTO
+status: BACKEND_IMPLEMENTED
+fase: BACKEND_VALIDADO_FRONTEND_PENDENTE
 criado_em: 2026-10-09
 ---
 
@@ -32,7 +32,7 @@ Backend Django/DRF:
 - `apps/pomodoro/urls.py` usa routers DRF. Views usam HasAPIKey e identidade lógica obtida por build_scope_key(request).
 - Já existem services e repositories. Regra de sorteio deve ficar fora de views e serializers.
 - Filas, Schedule, History e GoalCompletion têm regras próprias. O sorteio não é uma execução Pomodoro.
-- Migrações existentes chegam a 0022; criar migração aditiva com a próxima numeração disponível na implementação.
+- Migração aditiva entregue: 0023_moviescopelock_movie_moviecollection_and_more, dependente de 0022. Não há carga de vencedores nem alteração de dados existentes.
 
 Frontend Flutter:
 
@@ -69,7 +69,7 @@ Inclui cadastro manual no Django Admin, coleção Oscar, catálogo, roleta, esco
 
 Não carregar automaticamente uma lista de vencedores nesta etapa. Uma importação futura deverá ser versionada, idempotente, com dry-run e fonte oficial verificada. Não fixar quantidade total ou lista “atual” sem conferência.
 
-## 4. Modelo de dados proposto
+## 4. Modelo de dados entregue
 
 | Modelo | Campos principais | Regras |
 |---|---|---|
@@ -120,7 +120,7 @@ Fallbacks:
 - Fechar tela/app: reserva permanece; ao voltar exibir resultado salvo sem exigir nova animação.
 - Timeout: recuperar pelo request_id; não gerar novo UUID automaticamente.
 
-## 6. Contrato HTTP proposto
+## 6. Contrato HTTP entregue
 
 Rotas relativas ao prefixo API já utilizado pelo app. HasAPIKey e build_scope_key(request) em todas; cliente nunca escolhe scope_key no payload.
 
@@ -229,7 +229,7 @@ Distinguir falha de carregar catálogo, falha de sortear e falha de gravar assis
 
 ## 9. Arquivos e sequência de implementação
 
-Esta task entrega planejamento; não aplica modelos, migrações ou telas.
+Backend implementado nesta task. As etapas de frontend e carga editorial abaixo permanecem pendentes. Nenhum arquivo de frontend foi alterado.
 
 1. **Backend / domínio**: models.py, nova migration, admin.py; constraints, cadastro e compatibilidade de categorias. Revisar Activity serializers/admin para edições genéricas.
 2. **Backend / serviços**: services/movie_draw.py, movie_progress.py, movie_catalog.py e repositories/movies.py; seleção, locks, idempotência, contadores e reconciliação de reservas.
@@ -244,19 +244,19 @@ Entregar primeiro um fluxo vertical com dados sintéticos: cadastrar → sortear
 
 ## 10. Critérios de aceite e testes necessários
 
-- [ ] Activity comum continua sem exigir ano; Movie exige ano de lançamento.
-- [ ] Filmes vinculados aparecem somente no menu próprio, sem contaminar filas gerais.
-- [ ] Roleta inclui todos os elegíveis, inclusive fora da primeira página; não usa prioridade/cotas.
-- [ ] watched nunca é sorteado no mesmo scope; progresso de outro scope não interfere.
-- [ ] Clique em começar registra watching; só confirmação explícita registra watched.
-- [ ] Animação dura 5–10 segundos no modo normal e termina no vencedor persistido.
-- [ ] Timeout/retry com mesmo request_id produz o mesmo resultado e um único registro.
-- [ ] Dois POSTs simultâneos na mesma coleção não deixam duas reservas pending.
-- [ ] Duas mutações de progresso incompatíveis retornam conflito; criação simultânea também é coberta.
-- [ ] Fechar/reabrir recupera escolha; dispensar devolve filme; desfazer assistido torna filme elegível.
-- [ ] Inativação ou mudança de progresso durante animação não permite aceitação inválida.
-- [ ] Vazio, um candidato, todos assistidos e apenas filmes watching têm mensagens distintas.
-- [ ] Desfazer preserva evento histórico; atualização repetida idempotente não duplica evento.
+- [x] Activity comum continua sem exigir ano; Movie exige ano de lançamento.
+- [x] Filmes excluídos das filas gerais e da listagem comum de activities; menu próprio no frontend pendente.
+- [x] Roleta inclui todos os elegíveis, inclusive fora da primeira página; não usa prioridade/cotas.
+- [x] watched nunca é sorteado no mesmo scope; progresso de outro scope não interfere.
+- [x] Backend de começar registra watching; só confirmação explícita registra watched (ação visual do frontend pendente).
+- [ ] Animação do frontend dura 5–10 segundos e termina no vencedor; backend já persiste duração nesse intervalo e índice do vencedor.
+- [x] Timeout/retry com mesmo request_id produz o mesmo resultado e um único registro.
+- [x] Dois POSTs simultâneos na mesma coleção não deixam duas reservas pending.
+- [x] Duas mutações de progresso incompatíveis retornam conflito; criação simultânea também é coberta.
+- [x] API recupera escolha após timeout/reabertura, dispensa e desfaz conclusão; persistência local do request_id no frontend pendente.
+- [x] Backend impede aceitação de escolha inativa ou com progresso incompatível; animação no frontend pendente.
+- [x] Vazio, um candidato, todos assistidos e apenas filmes watching têm mensagens distintas.
+- [x] Desfazer preserva evento histórico; atualização repetida idempotente não duplica evento.
 - [ ] URL ausente/pôster quebrado não bloqueia o fluxo; abrir link não altera progresso.
 - [ ] Longos títulos, catálogo grande, mobile pequeno e movimento reduzido funcionam.
 
@@ -274,4 +274,71 @@ Banco de testes isolado conforme personal-python-api, sem fallback para DATABASE
 - A coleção pode crescer: progresso acompanha o catálogo ativo e não reinicia ao cadastrar novos filmes.
 - Reassistir em ciclos, bloquear filmes permanentemente, notas pessoais, avaliação, importação oficial e integração de timer são extensões futuras.
 
-Decisões padrão deste plano: nome do menu Filmes; coleção inicial Oscar; cadastro manual no admin; Movie estende Activity; progresso separado por scope; escolha persistente; começar não conclui; sem timer obrigatório. Podem ser ajustadas antes da implementação sem migrar dados, pois esta spec permanece PROPOSED.
+Decisões padrão deste plano: nome do menu Filmes; coleção inicial Oscar; cadastro manual no admin; Movie estende Activity; progresso separado por scope; escolha persistente; começar não conclui; sem timer obrigatório. Backend implementado com as decisões e contratos finais da seção 12. Mudanças posteriores de contrato ou domínio devem considerar os dados persistidos.
+
+
+## 12. Entrega backend e decisões técnicas finais
+
+### 12.1 Persistência e concorrência
+
+- Os sete modelos de domínio estão em `apps/pomodoro/movie_models.py`, reexportados por `models.py` no app existente. A migração 0023 é exclusivamente aditiva, com PROTECT, unicidades, checks de anos/duração/status/datas/versão/índice e índices por coleção, escopo, status e tempo.
+- Acrescentados dois modelos internos: `MovieMutation` guarda hash e resposta JSON imutável para replay também de accept/dismiss; `MovieScopeLock` fornece uma linha única por identidade lógica. Não é um usuário novo nem muda a identidade existente.
+- Ordem de locks: mutex do escopo → estados de todas as coleções em ordem de PK → Movie/Activity selecionados → progresso existente. `get_or_create` trata criação simultânea por unicidade e savepoint; a linha de mutex protege também progresso ainda ausente e UUID usado em operações/coleções diferentes. Para o MVP, comandos do mesmo escopo são serializados entre coleções; escopos diferentes continuam independentes. O custo cresce com o número de coleções, uma limitação deliberada deste catálogo pequeno.
+- Todas as mutações são atômicas. Falha ao registrar evento reverte progresso, reserva e idempotência. O vencedor, snapshot completo, índice e duração são persistidos antes da resposta; não há espera pela animação.
+- Hash SHA-256 inclui operação, alvo e payload validado/canonizado. Campos desconhecidos são rejeitados, inclusive `scope_key`. UUID é único entre todas as mutações de filmes no escopo, não apenas dentro de um endpoint.
+- Replay é verificado antes das versões: payload idêntico retorna a resposta original, sem alterar versões nem duplicar eventos. Outro payload/operação/alvo com o mesmo UUID retorna `409 idempotency_conflict`. Erros não consomem UUID. Após alteração do payload ou atualização de versões, o cliente deve criar novo request_id; após timeout deve conservar o anterior.
+- Cada comando de progresso novo aceito verifica a versão, incrementa-a e registra evento, inclusive se repetir o status com novo UUID. Virtualmente, ausência de progresso significa unwatched/version=0; primeira escrita persiste version=1.
+- A versão de cada coleção afetada muda uma vez por comando; resolução e progresso na mesma transação não contam duas mudanças. Metadados editoriais não incrementam versão de estado, mas elegibilidade é sempre revalidada.
+- Watching/watched resolvem como accepted as reservas do mesmo filme em todas as coleções daquele escopo. Desfazer volta a unwatched e limpa as duas datas, preservando eventos e sorteios. Começar não cria timer, History, GoalCompletion, metas nem contadores.
+- GET state não escreve. Reserva inelegível aparece com `current_draw_valid=false`. Accept retorna movie_unavailable; o cliente usa dismiss explícito para invalidar/liberar e depois pode sortear novamente. POST draws nunca substitui reserva automaticamente, mesmo inválida. Estado, recuperação, replay e dismiss continuam disponíveis para uma coleção desativada, para preservar a escolha após timeout e liberar a reserva; sortear de novo ou aceitar exige coleção ativa.
+- Nenhum grupo/categoria/coleção foi semeado por migração: cadastrar categoria e coleção manualmente, usando slug `oscar-best-picture` para a coleção inicial. Não foi importada lista histórica, nem acessado serviço externo.
+
+### 12.2 Contratos finais para o frontend
+
+Todos os caminhos da seção 6 foram implementados sob `/api/`, com HasAPIKey e a mesma `build_scope_key` usada nas filas. A identidade é lógica; compartilhar a credencial/identidade existente pode compartilhar progresso. Não enviar scope_key em JSON.
+
+- Listas de coleções, catálogo e eventos: `{count, next, previous, results}`, page inicial 1, page_size padrão 30 e máximo 100. Não há limite de página aplicado à população de sorteio.
+- GET collections: cada resultado contém `id, slug, name, category_id, collection_id, version, counts, condition, current_draw, current_draw_valid`.
+- GET state: `{collection_id, version, counts, condition, current_draw, current_draw_valid}`. `counts` contém total_active/watched/watching/unwatched/eligible_count. condition: ready/empty_collection/collection_completed/no_eligible_movies. Uma reserva válida mantém condition=ready, mesmo que eligible_count=0; mostrar a escolha pendente.
+- GET movies aceita collection_id, status, search, page e page_size. Busca por título, sem diferenciar maiúsculas. Ordem: premiação, lançamento, nome, ID; sort_order permanece metadado editorial sem sobrepor essa ordem no MVP. Sem filtro de coleção, award_year é null. Detalhe acrescenta `collections: [{collection_id, award_year, award_edition}]`, pois premiação pertence à entrada, não a Movie.
+- Movie contém `id, activity_id, name, description, release_year, award_year, runtime_minutes, poster_url, watch_url, active, progress`. Progresso: `{status, version, started_at, watched_at}`; datas ISO-8601 ou null. Detalhe de filme desativado permanece consultável por API key, mas mutação de progresso exige Movie e Activity ativos.
+- POST draws exige `{request_id: UUID, expected_state_version: inteiro >=0}`. Retorna os campos do exemplo da seção 6, além de selected_at/resolved_at e `state` completo. Novo sorteio: 201; replay: 200. `eligible_count` no resultado é a população anterior à reserva; `state.counts.eligible_count` desconta a reserva atual.
+- GET by-request retorna o mesmo vencedor/snapshot/índice/duração persistidos, com status/progresso/estado atuais e state_version atual. Replay de POST retorna a resposta original: consultar GET state para obter versões atuais antes da próxima ação.
+- Accept exige `{request_id, expected_state_version, expected_progress_version}`; dismiss exige `{request_id, expected_state_version}`. UUID do sorteio fica na rota. PATCH progress exige `{request_id, expected_version, status}`, com draw_id opcional; draw_id deve ser uma reserva pending válida do mesmo filme e escopo.
+- Resposta de mutação: `{movie, progress, states}`. `states` lista as coleções vinculadas ao filme. Accept/dismiss também devolvem `state` da coleção da rota. Progresso e state/version nessa resposta são os valores pós-comando; não inferir incrementos no cliente.
+- Evento paginado: `{id, movie_id, name, request_id, previous_status, next_status, occurred_at, draw_id}`. Não expõe scope_key nem possui endpoint de edição/exclusão.
+- Erros de domínio: `{code, detail}` com HTTP 409 e códigos da seção 6. pending_draw_exists também inclui `draw_id` e `valid`; movie_unavailable na aceitação pode incluir draw_id. Validação usa HTTP 400/invalid_input e detail como mapa/lista de mensagens por campo. Registro ausente/inacessível: HTTP 404/not_found. Ausência/invalidade da API key mantém HTTP 403 e o formato já usado por HasAPIKey.
+- Pôster/watch_url são opcionais e somente HTTP/HTTPS no cadastro validado; servidor não busca os links. runtime_minutes nunca altera Activity.duration.
+
+### 12.3 Auditoria das filas e Admin
+
+- Exclusão usa existência de Movie, inclusive inativo: eligible_activities, diagnóstico de fila vazia, activity_belongs_to_queue, elegibilidade individual, criação normal, revisão de pulados, recriação com pulados e promoção premium/reconciliação.
+- Movie.save reconcilia filas ativas após cadastro/edição: expira pending/presented futuros também em Todos e revisão de pulados. Não insere atividades novas em revisão fechada. Expiração protege itens ligados a Schedule preparing/running; started/completed, sessões e histórico permanecem preservados.
+- A listagem genérica de activities omite filmes; detalhe/edição e endpoints de histórico/sessão continuam acessíveis. Início por item de fila revalida activity_belongs_to_queue; consultas de sessão aberta continuam preservadas.
+- Activity.can_execute devolve false para vínculo Movie. Mudanças genéricas de categoria são validadas tanto no serializer de Activity quanto no clean do model/Admin; MovieCollection e suas entradas também validam compatibilidade.
+- Admin: Movie inline em Activity sem exclusão do vínculo; coleção com entradas inline; edição e filtros de metadados. Movie não pode ser apagado pelo admin para reinserir silenciosamente Activity. Progresso, sorteios, estado, mutex, ledger e eventos são consultáveis somente para leitura; eventos não permitem inclusão, alteração ou exclusão.
+
+### 12.4 Comandos seguros e validações
+
+Executar da raiz do backend, com o virtualenv existente. Não usar settings.local/production, DATABASE_URL de ambiente nem comandos de migration em banco compartilhado.
+
+```bash
+python3 /home/barscka/workspace/skills/skills_pessoais/tools/standards/doctor.py --project .
+APP_ENV=test TEST_DATABASE_URL=sqlite:///tests/.tmp/spec018.sqlite .venv/bin/python manage.py check --settings=config.settings.test
+APP_ENV=test TEST_DATABASE_URL=sqlite:///tests/.tmp/spec018.sqlite .venv/bin/python manage.py makemigrations --check --dry-run --settings=config.settings.test
+APP_ENV=test TEST_DATABASE_URL=sqlite:///tests/.tmp/spec018.sqlite .venv/bin/python manage.py test --settings=config.settings.test --noinput
+scripts/test_spec018_postgres.sh
+git diff --check
+```
+
+O script PostgreSQL exige Docker e imagem postgres:16 já presente (`--pull=never`), cria container novo com banco spec018_test/credenciais sintéticas, dados somente em tmpfs, porta efêmera vinculada a 127.0.0.1, executa migrations/testes nesse banco e remove o container no trap. Não reutiliza volume, banco ou credencial existentes. O `--keepdb` vale somente durante a vida do container descartável. SQLite valida contratos/regras e não comprova locks; os testes de locks são explicitamente pulados ali.
+
+Validações efetivamente executadas nesta entrega serão registradas no handoff da SPEC-018. Incluem catálogo sintético, todas as rotas, isolamento por API key, fonte aleatória controlada/população completa/índices e extremos de duração, versões, replay, recuperação, reserva inválida, rollback, progresso compartilhado entre coleções, metadados/constraints/Admin, criação/recriação/revisão/premium de filas e preservação de sessões/histórico. PostgreSQL cobre criação concorrente de mutex/estado/progresso, UUID simultâneo, disputa por reserva, accept versus conclusão e conflito do mesmo UUID entre coleções.
+
+### 12.5 Pendências explícitas
+
+- Frontend completo (seção 8), testes visuais/acessibilidade, armazenamento local do request_id e validação conjunta: não realizados nesta task exclusivamente backend.
+- Cadastro editorial da coleção e filmes reais: não realizado. Todo dado de teste é sintético.
+- Aplicação da migração em ambiente operacional: não realizada. Revisar janela e backup antes de implantação conforme fluxo do projeto.
+- GETs podem observar atualização concorrente entre consultas; versões e revalidação nas mutações são a proteção contra escrita stale. Em conflito, recarregar estado/progresso.
+- Ledger e snapshots não têm retenção/limpeza automática. Considerar crescimento do catálogo/histórico e custo de serialização por escopo antes de expandir para muitas coleções.

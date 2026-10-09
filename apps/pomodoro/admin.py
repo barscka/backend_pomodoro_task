@@ -200,3 +200,76 @@ class ActivityQueueAdmin(admin.ModelAdmin):
 class ActivityQueueItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'queue', 'activity', 'position', 'state')
     list_filter = ('state', 'queue__group')
+
+from .models import (Movie, MovieCollection, MovieCollectionEntry, MovieProgress,
+                     MovieDrawState, MovieDraw, MovieProgressEvent, MovieMutation, MovieScopeLock)
+
+
+class MovieInline(admin.StackedInline):
+    model = Movie
+    extra = 0
+    max_num = 1
+    can_delete = False
+
+
+ActivityAdmin.inlines = [MovieInline]
+
+
+class MovieEntryInline(admin.TabularInline):
+    model = MovieCollectionEntry
+    extra = 0
+    autocomplete_fields = ('movie',)
+
+
+@admin.register(MovieCollection)
+class MovieCollectionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'category', 'active')
+    list_filter = ('active', 'category')
+    search_fields = ('name', 'slug')
+    autocomplete_fields = ('category',)
+    inlines = [MovieEntryInline]
+
+
+@admin.register(Movie)
+class MovieAdmin(admin.ModelAdmin):
+    list_display = ('activity', 'release_year', 'runtime_minutes', 'active')
+    list_filter = ('active', 'release_year', 'activity__category', 'entries__collection')
+    search_fields = ('activity__name',)
+    autocomplete_fields = ('activity',)
+    list_select_related = ('activity',)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(MovieCollectionEntry)
+class MovieEntryAdmin(admin.ModelAdmin):
+    list_display = ('collection', 'movie', 'award_year', 'award_edition')
+    list_filter = ('collection', 'award_year', 'movie__activity__category')
+    autocomplete_fields = ('collection', 'movie')
+
+
+@admin.register(MovieProgress)
+class MovieProgressAdmin(ReadOnlyGoalAdmin):
+    list_display = ('movie', 'scope_key', 'status', 'version', 'started_at', 'watched_at')
+    list_filter = ('status', 'movie__entries__collection')
+    search_fields = ('scope_key', 'movie__activity__name')
+
+
+@admin.register(MovieProgressEvent)
+class MovieProgressEventAdmin(ReadOnlyGoalAdmin):
+    list_display = ('movie', 'scope_key', 'previous_status', 'next_status', 'occurred_at')
+    search_fields = ('scope_key', 'movie__activity__name', 'request_id')
+    list_filter = ('next_status',)
+
+
+@admin.register(MovieDraw)
+class MovieDrawAdmin(ReadOnlyGoalAdmin):
+    list_display = ('id', 'scope_key', 'collection', 'movie', 'status', 'selected_at')
+    list_filter = ('collection', 'status')
+    search_fields = ('scope_key', 'request_id', 'movie__activity__name')
+
+
+@admin.register(MovieDrawState, MovieMutation, MovieScopeLock)
+class MovieInternalAdmin(ReadOnlyGoalAdmin):
+    pass

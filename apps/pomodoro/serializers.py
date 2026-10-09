@@ -45,6 +45,10 @@ class ActivitySerializer(serializers.ModelSerializer):
                  'can_execute', 'remaining_executions', 'group_id', 'group_name']
 
     def validate(self, attrs):
+        if self.instance and 'category' in attrs:
+            from .models import MovieCollectionEntry
+            if MovieCollectionEntry.objects.filter(movie__activity=self.instance).exclude(collection__category=attrs['category']).exists():
+                raise serializers.ValidationError({'category': 'A categoria deve ser compatível com as coleções de filmes.'})
         if self.instance and self.instance.premium_periods.exists() and any(
             key in attrs for key in ('premium', 'premium_from', 'premium_until')
         ):
