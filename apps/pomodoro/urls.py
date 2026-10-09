@@ -18,7 +18,11 @@ from .views import (
     RetroPlatformViewSet,
 )
 
+from .movie_views import MovieCollectionViewSet, MovieViewSet
+
 router = DefaultRouter()
+router.register(r'movie-collections', MovieCollectionViewSet, basename='movie-collection')
+router.register(r'movies', MovieViewSet, basename='movie')
 router.register(r'routines', RoutineViewSet, basename='routine')
 router.register(r'weekly-goals', WeeklyGoalViewSet, basename='weekly-goal')
 router.register(r'groups', GroupViewSet, basename='group')

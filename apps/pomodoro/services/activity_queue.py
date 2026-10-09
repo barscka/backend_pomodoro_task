@@ -97,6 +97,7 @@ def normalize_group(selected_group: Group | None) -> Group:
 def activity_belongs_to_queue(activity: Activity, queue_group: Group) -> bool:
     return bool(
         activity.category_id
+        and not hasattr(activity, 'movie')
         and (
             queue_group.is_default
             or activity.category.group_id == queue_group.id
@@ -136,7 +137,7 @@ def group_remaining_minutes(group: Group, *, day=None) -> int | None:
 
 
 def diagnose_empty_queue(group: Group) -> str:
-    base = Activity.objects.filter(active=True, category__isnull=False)
+    base = Activity.objects.filter(active=True, category__isnull=False, movie__isnull=True)
     if not group.is_default:
         base = base.filter(category__group=group)
     if not base.exists():
@@ -208,6 +209,7 @@ def eligible_activities(*, selected_group: Group | None, include_done_today: boo
     queryset = Activity.objects.select_related('category', 'category__group').filter(
         active=True,
         category__isnull=False,
+        movie__isnull=True,
     )
     if not include_done_today:
         queryset = queryset.exclude(
@@ -362,6 +364,8 @@ def _expire_invalid_items(queue: ActivityQueue):
     for item in queue.items.select_related('activity__category__group').filter(
         state__in=[ActivityQueueItem.STATE_PENDING, ActivityQueueItem.STATE_PRESENTED]
     ):
+        if Schedule.objects.filter(queue_item=item, state__in=[Schedule.STATE_PREPARING, Schedule.STATE_RUNNING]).exists():
+            continue
         if activity_is_eligible(
             item.activity,
             queue.group,

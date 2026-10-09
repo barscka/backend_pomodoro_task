@@ -189,7 +189,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         expire_finished_premiums()
         queryset = super().get_queryset()
         if self.action in ['list', 'next']:
-            queryset = queryset.filter(active=True)
+            queryset = queryset.filter(active=True, movie__isnull=True)
         category_id = self.request.query_params.get('category_id')
         group = get_requested_group(self.request)
 

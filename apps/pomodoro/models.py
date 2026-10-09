@@ -177,7 +177,7 @@ class Activity(models.Model):
         return True
 
     def can_execute(self, selected_group=None):
-        if not self.active:
+        if not self.active or hasattr(self, 'movie'):
             return False
 
         if not self.category:
@@ -201,6 +201,8 @@ class Activity(models.Model):
     
     def clean(self):
         """Validação temporária usando executions_today"""
+        if self.pk and MovieCollectionEntry.objects.filter(movie__activity_id=self.pk).exclude(collection__category_id=self.category_id).exists():
+            raise ValidationError({'category': 'A categoria deve ser compatível com as coleções de filmes.'})
         if self.premium:
             if not self.premium_from or not self.premium_until:
                 raise ValidationError(
@@ -888,3 +890,7 @@ class RoutineSessionAssociation(models.Model):
     class Meta:
         indexes = [models.Index(fields=['scope_key', 'origin_date', 'block_id'], name='routine_session_scope_day_idx')]
         constraints = [models.CheckConstraint(condition=Q(occurrence_ends_at__gt=models.F('occurrence_starts_at')) & Q(session_starts_at__gte=models.F('occurrence_starts_at'), session_starts_at__lt=models.F('occurrence_ends_at')), name='routine_session_inside_start')]
+
+# Mantém o registro dos modelos no app existente sem ampliar este módulo.
+from .movie_models import (MovieCollection, Movie, MovieCollectionEntry, MovieProgress,
+                           MovieDrawState, MovieDraw, MovieProgressEvent, MovieMutation, MovieScopeLock)
