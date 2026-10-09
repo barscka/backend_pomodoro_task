@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Importar filmes em segundo plano</h1>
+<p>Envie um CSV UTF-8 de até 2 MB e 1.000 filmes. A prévia será preparada em segundo plano; nenhuma alteração será aplicada antes da sua confirmação.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+{{ form.as_p }}<input type="submit" value="Preparar prévia">
+</form>
+<h2>Suas importações recentes</h2>
+<ul>{% for job in jobs %}<li><a href="{% url 'admin:pomodoro_movie_import_job' job.pk %}">{{ job.filename }}</a> — {{ job.get_status_display }} — {{ job.created_at }}</li>{% empty %}<li>Nenhuma importação.</li>{% endfor %}</ul>
+{% endblock %}

@@ -894,3 +894,4 @@ class RoutineSessionAssociation(models.Model):
 # Mantém o registro dos modelos no app existente sem ampliar este módulo.
 from .movie_models import (MovieCollection, Movie, MovieCollectionEntry, MovieProgress,
                            MovieDrawState, MovieDraw, MovieProgressEvent, MovieMutation, MovieScopeLock)
+from .movie_import_models import MovieImportJob

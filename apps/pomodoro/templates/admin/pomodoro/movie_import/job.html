@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% block extrahead %}{{ block.super }}{% if pending %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block content %}
+<h1>{{ job.filename }}</h1>
+<p><strong>{{ job.get_status_display }}</strong></p>
+{% if pending %}<p>Esta página atualiza a cada 5 segundos. Você pode sair e voltar pelo menu Importar. Se permanecer aguardando, verifique se o worker está ativo.</p>{% endif %}
+{% if job.report.total_rows %}<p>{{ job.report.total_rows }} filmes processados. Novos: {{ job.report.totals.new }}. Atualizações: {{ job.report.totals.update }}.</p>{% endif %}
+{% for error in job.report.errors %}<p class="errornote">{{ error }}</p>{% endfor %}
+{% if data %}
+<p>Revise os dados abaixo. A confirmação revalidará o arquivo antes de gravar. Filmes assistidos e campos opcionais vazios são preservados.</p>
+<div style="overflow-x:auto"><table><thead><tr>{% for header in data.headers %}<th>{{ header }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in data %}<tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+<form method="post">{% csrf_token %}<input type="submit" value="Confirmar importação"></form>
+{% endif %}
+<p><a href="{% url 'admin:pomodoro_movie_import' %}">Voltar às importações</a></p>
+{% endblock %}
