@@ -42,6 +42,8 @@ while True:
         time.sleep(2)
 PY
 fi
-echo "Coletando arquivos estáticos..."
-python manage.py collectstatic --noinput
+if [ "${RUN_COLLECTSTATIC:-true}" = "true" ]; then
+    echo "Coletando arquivos estáticos..."
+    python manage.py collectstatic --noinput
+fi
 exec "$@"

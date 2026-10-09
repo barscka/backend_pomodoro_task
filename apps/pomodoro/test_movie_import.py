@@ -9,7 +9,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Activity, Category, Group, Movie, MovieCollection, MovieCollectionEntry, MovieProgress
+from .models import Activity, Category, Group, Movie, MovieCollection, MovieCollectionEntry, MovieProgress, MovieImportJob
+from .jobs.movie_import import process_next
 from .movie_resources import OscarMovieResource
 from .services.movie_import import COLUMNS
 
@@ -182,11 +183,20 @@ class MovieImportTests(TestCase):
             'format': '0', 'resource': '0',
             'import_file': SimpleUploadedFile('movies.csv', data, content_type='text/csv'),
         })
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(Movie.objects.exists())
-        confirm = response.context['confirm_form']
-        response = self.client.post(reverse('admin:pomodoro_movie_process_import'), confirm.initial)
         self.assertEqual(response.status_code, 302)
+        self.assertFalse(Movie.objects.exists())
+        job = MovieImportJob.objects.get()
+        self.assertEqual(job.status, 'queued_preview')
+        process_next()
+        job.refresh_from_db()
+        self.assertEqual(job.status, 'ready')
+        self.assertFalse(Movie.objects.exists())
+        job_url = reverse('admin:pomodoro_movie_import_job', args=[job.pk])
+        self.assertEqual(self.client.get(job_url).status_code, 200)
+        response = self.client.post(job_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Movie.objects.exists())
+        process_next()
         self.assertEqual(Movie.objects.count(), 1)
         staff = get_user_model().objects.create_user('limited', password='test-password', is_staff=True)
         staff.user_permissions.add(Permission.objects.get(codename='change_movie'))

@@ -7,7 +7,7 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  backend:
+  backend: &backend_runtime
     image: ${BACKEND_IMAGE:-backend-pomodoro-task:local}
     build:
       context: .
@@ -46,6 +46,17 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  movie-import-worker:
+    <<: *backend_runtime
+    command: ["python", "manage.py", "process_movie_imports"]
+    environment:
+      RUN_COLLECTSTATIC: "false"
+    healthcheck:
+      disable: true
+    depends_on:
+      backend:
+        condition: service_healthy
 
   nginx:
     image: backend-pomodoro-task-nginx:local
