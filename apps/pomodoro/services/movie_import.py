@@ -6,7 +6,7 @@ from apps.pomodoro.models import Activity, Category, Group, Movie, MovieCollecti
 SOURCE = 'oscar-best-picture'
 REQUIRED = ('name', 'release_year', 'award_year', 'award_edition', 'group_name',
             'category_name', 'collection_slug', 'collection_name')
-OPTIONAL = ('runtime_minutes', 'poster_url', 'watch_url')
+OPTIONAL = ('runtime_minutes', 'poster_url', 'watch_url', 'description')
 COLUMNS = REQUIRED + OPTIONAL
 
 
@@ -77,6 +77,8 @@ def prepare_movie(movie, row):
             raise ValidationError('Já existe Activity com esse nome; vincule Movie manualmente antes de importar.')
         activity = Activity(category=category)
     activity.name = row['name']
+    if row['description']:
+        activity.description = row['description']
     activity.external_source = SOURCE
     activity.external_id = identity(row)
     activity.full_clean()
@@ -85,7 +87,7 @@ def prepare_movie(movie, row):
     movie.release_year = row['release_year']
     # Células vazias não apagam enriquecimento manual nem reativam filmes.
     for key in OPTIONAL:
-        if row[key] != '':
+        if key != 'description' and row[key] != '':
             setattr(movie, key, row[key])
     movie._import_collection = collection
     movie._import_entry_values = {'award_year': row['award_year'], 'award_edition': row['award_edition']}

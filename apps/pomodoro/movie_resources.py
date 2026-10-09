@@ -8,6 +8,7 @@ from .services import movie_import
 
 class OscarMovieResource(resources.ModelResource):
     name = fields.Field(column_name='name', attribute='activity__name', readonly=True)
+    description = fields.Field(column_name='description', attribute='activity__description', readonly=True)
     release_year = fields.Field(column_name='release_year', attribute='release_year', readonly=True)
     award_year = fields.Field(column_name='award_year', readonly=True)
     award_edition = fields.Field(column_name='award_edition', readonly=True)
@@ -30,16 +31,30 @@ class OscarMovieResource(resources.ModelResource):
         skip_unchanged = False
 
     def import_data(self, dataset, dry_run=False, raise_errors=False, **kwargs):
+        # A biblioteca continua nas linhas após uma falha de before_import.
+        # Rejeitar cabeçalhos antes do fluxo evita erros em cascata e consultas.
+        try:
+            self._validate_headers(dataset)
+        except ValidationError as error:
+            if raise_errors:
+                raise
+            result = self.get_result_class()()
+            result.total_rows = len(dataset)
+            result.append_base_error(self.get_error_result_class()(error))
+            return result
         kwargs['use_transactions'] = True
         kwargs['rollback_on_validation_errors'] = True
         return super().import_data(dataset, dry_run=dry_run, raise_errors=raise_errors, **kwargs)
 
-    def before_import(self, dataset, **kwargs):
+    def _validate_headers(self, dataset):
         headers = dataset.headers or []
         missing = set(movie_import.REQUIRED) - set(headers)
         unknown = set(headers) - set(movie_import.COLUMNS)
         if missing or unknown or len(headers) != len(set(headers)):
             raise ValidationError(f'Cabeçalhos inválidos. Ausentes: {sorted(missing)}; desconhecidos: {sorted(unknown)}.')
+
+    def before_import(self, dataset, **kwargs):
+        self._validate_headers(dataset)
         self._seen = set()
 
     def before_import_row(self, row, **kwargs):
