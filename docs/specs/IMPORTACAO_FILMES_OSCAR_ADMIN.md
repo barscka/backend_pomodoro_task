@@ -9,6 +9,8 @@
 5. Revise a prévia de todas as linhas. Se não houver erros, confirme a importação.
 6. Verifique a coleção **Oscar — Melhor Filme** no Admin e no menu Filmes do app.
 
+Se o Admin rejeitar `description` como coluna desconhecida, o servidor está executando o importador anterior. Implante a versão que inclui essa coluna e reinicie/recrie o serviço Django antes de usar o CSV atualizado. Remover a coluna permite usar o formato antigo, mas não importa as descrições. A validação de cabeçalhos agora interrompe o arquivo antes de processar linhas, evitando erros secundários de `_seen`.
+
 O arquivo é UTF-8, separado por vírgulas, com cabeçalho e 97 registros. UTF-8 com BOM também é aceito. Os nomes usam os títulos brasileiros; títulos sem tradução comercial mantêm o nome conhecido no Brasil. A coluna opcional `description` registra título original, disponibilidade no Brasil, data e URL da fonte. Duração, pôster e link direto de assistir ficam vazios para preenchimento editorial posterior.
 
 As descrições distinguem assinatura, gratuito (eventualmente com anúncios) e aluguel/compra. Canais pagos dentro de Amazon ou Apple aparecem com seu nome completo: não significa inclusão na assinatura básica. Em sete filmes, a fonte não lista nenhuma oferta brasileira; isso não prova indisponibilidade em todos os serviços existentes. Foram consultadas páginas regionais do JustWatch em 09/10/2026, que podem conter dados em cache; quando presente, a data da última checagem informada pela página também consta na descrição. Os catálogos mudam e não há atualização automática.

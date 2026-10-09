@@ -158,6 +158,19 @@ class MovieImportTests(TestCase):
             {'name': 'All Quiet on the Western Front', 'award_year': 1930, 'release_year': 1930, 'award_edition': 3})))
         self.assertEqual(Movie.objects.count(), 2)
 
+    def test_unknown_header_fails_before_rows_and_resource_can_be_reused(self):
+        resource = OscarMovieResource()
+        invalid = dataset({}, {'award_edition': 96})
+        invalid.append_col(['', ''], header='unexpected')
+        with self.assertNumQueries(0):
+            result = resource.import_data(invalid)
+        self.assertEqual(len(result.base_errors), 1)
+        self.assertIn('unexpected', str(result.base_errors[0].error))
+        self.assertEqual(result.row_errors(), [])
+        self.assertEqual(result.invalid_rows, [])
+        self.assertFalse(Activity.objects.exists())
+        self.check_result(resource.import_data(dataset({})))
+
     def test_admin_permissions_and_preview_confirmation(self):
         user = get_user_model().objects.create_superuser('importer', 'importer@example.org', 'test-password')
         self.client.force_login(user)
