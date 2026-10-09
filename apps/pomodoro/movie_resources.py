@@ -8,6 +8,7 @@ from .services import movie_import
 
 class OscarMovieResource(resources.ModelResource):
     name = fields.Field(column_name='name', attribute='activity__name', readonly=True)
+    description = fields.Field(column_name='description', attribute='activity__description', readonly=True)
     release_year = fields.Field(column_name='release_year', attribute='release_year', readonly=True)
     award_year = fields.Field(column_name='award_year', readonly=True)
     award_edition = fields.Field(column_name='award_edition', readonly=True)

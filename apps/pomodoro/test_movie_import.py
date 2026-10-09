@@ -22,7 +22,7 @@ def dataset(*rows):
         values = dict(name='Filme teste', release_year=2024, award_year=2025, award_edition=97,
                       group_name='Entretenimento', category_name='Oscar',
                       collection_slug='oscar-best-picture', collection_name='Oscar — Melhor Filme',
-                      runtime_minutes='', poster_url='', watch_url='')
+                      runtime_minutes='', poster_url='', watch_url='', description='')
         values.update(extra)
         result.append([values[key] for key in COLUMNS])
     return result
@@ -40,8 +40,11 @@ class MovieImportTests(TestCase):
     def test_full_csv_preview_commit_reimport_preserves_progress_and_metadata(self):
         data = tablib.Dataset().load(CSV_PATH.read_text(), format='csv')
         self.assertEqual(len(data), 97)
-        self.assertEqual(data[0][:4], ('Wings', '1927', '1929', '1'))
+        self.assertEqual(data[0][:4], ('Asas', '1927', '1929', '1'))
         self.assertEqual(data[-1][:4], ('Anora', '2024', '2025', '97'))
+        for row in data.dict:
+            self.assertIn('Brasil:', row['description'])
+            self.assertIn('Fonte:', row['description'])
         preview = OscarMovieResource().import_data(data, dry_run=True)
         self.check_result(preview)
         for model in (Group, Category, Activity, Movie, MovieCollection, MovieCollectionEntry):
@@ -69,6 +72,34 @@ class MovieImportTests(TestCase):
         self.assertEqual(progress.status, 'watched')
         self.assertIsNotNone(progress.watched_at)
         self.assertEqual(movie.activity.duration, 60)
+        self.assertIn('Amazon Prime Video', movie.activity.description)
+
+    def test_translation_and_description_update_preserve_identity_and_progress(self):
+        self.check_result(OscarMovieResource().import_data(dataset({'name': 'Wings'})))
+        movie = Movie.objects.get()
+        original_id = movie.pk
+        progress = MovieProgress.objects.create(scope_key='test', movie=movie, status='watched',
+                                               watched_at=timezone.now())
+        description = 'Brasil: assinatura no Belas Artes à La Carte.'
+        self.check_result(OscarMovieResource().import_data(dataset({'name': 'Asas', 'description': description})))
+        movie.refresh_from_db()
+        progress.refresh_from_db()
+        self.assertEqual(Movie.objects.count(), 1)
+        self.assertEqual(movie.pk, original_id)
+        self.assertEqual(movie.activity.name, 'Asas')
+        self.assertEqual(movie.activity.description, description)
+        self.assertEqual(progress.movie_id, original_id)
+        self.assertEqual(progress.status, 'watched')
+        self.assertEqual(progress.version, 1)
+
+    def test_blank_description_and_legacy_csv_preserve_existing_description(self):
+        description = 'Descrição editorial existente'
+        self.check_result(OscarMovieResource().import_data(dataset({'description': description})))
+        self.check_result(OscarMovieResource().import_data(dataset({})))
+        legacy = dataset({})
+        del legacy['description']
+        self.check_result(OscarMovieResource().import_data(legacy))
+        self.assertEqual(Movie.objects.get().activity.description, description)
 
     def test_invalid_second_row_rolls_back_whole_file(self):
         result = OscarMovieResource().import_data(dataset({}, {'name': 'Outro', 'award_edition': 96,
