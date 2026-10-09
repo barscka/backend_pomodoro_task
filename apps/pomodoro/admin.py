@@ -4,6 +4,10 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import redirect
 from django.urls import path, reverse
+from import_export.admin import ImportMixin
+from import_export.formats.base_formats import CSV
+
+from .movie_resources import OscarMovieResource
 
 from .models import (Activity, ActivityQueue, ActivityQueueItem, Category, Group, History,
                      Schedule, RetroGame, RetroGameProgress, RetroPlatform)
@@ -231,7 +235,17 @@ class MovieCollectionAdmin(admin.ModelAdmin):
 
 
 @admin.register(Movie)
-class MovieAdmin(admin.ModelAdmin):
+class MovieAdmin(ImportMixin, admin.ModelAdmin):
+    resource_classes = [OscarMovieResource]
+    import_formats = [CSV]
+    from_encoding = 'utf-8-sig'
+
+    def has_import_permission(self, request):
+        # O CSV também cria/edita os modelos relacionados, não apenas Movie.
+        models = ('movie', 'activity', 'group', 'category', 'moviecollection', 'moviecollectionentry')
+        return all(request.user.has_perm(f'pomodoro.{action}_{model}')
+                   for model in models for action in ('add', 'change'))
+
     list_display = ('activity', 'release_year', 'runtime_minutes', 'active')
     list_filter = ('active', 'release_year', 'activity__category', 'entries__collection')
     search_fields = ('activity__name',)
