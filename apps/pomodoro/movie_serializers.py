@@ -35,3 +35,20 @@ class CatalogQuery(StrictSerializer):
     search = serializers.CharField(required=False, allow_blank=True, max_length=200)
     page = serializers.IntegerField(min_value=1, required=False)
     page_size = serializers.IntegerField(min_value=1, max_value=100, required=False)
+
+
+class TierMove(StrictSerializer):
+    movie_id = serializers.IntegerField(min_value=1)
+    tier = serializers.ChoiceField(choices=list('SABCD'), allow_null=True)
+
+
+class TierRequest(StrictSerializer):
+    request_id = serializers.UUIDField()
+    expected_version = serializers.IntegerField(min_value=0)
+    moves = TierMove(many=True, allow_empty=False, max_length=100)
+
+    def validate_moves(self, moves):
+        ids = [move['movie_id'] for move in moves]
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError('Informe cada filme apenas uma vez.')
+        return moves

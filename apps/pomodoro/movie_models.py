@@ -163,3 +163,26 @@ class MovieMutation(models.Model):
 class MovieScopeLock(models.Model):
     """Mutex por identidade lógica para criação e idempotência entre coleções."""
     scope_key = models.CharField(max_length=64, unique=True)
+
+
+class MovieTierState(models.Model):
+    scope_key = models.CharField(max_length=64)
+    collection = models.ForeignKey(MovieCollection, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['scope_key', 'collection'], name='movie_tier_state_scope_unique')]
+
+
+class MovieTierRating(models.Model):
+    scope_key = models.CharField(max_length=64)
+    collection = models.ForeignKey(MovieCollection, on_delete=models.PROTECT)
+    movie = models.ForeignKey(Movie, on_delete=models.PROTECT)
+    tier = models.CharField(max_length=1, choices=[(tier, tier) for tier in 'SABCD'])
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['scope_key', 'collection', 'movie'], name='movie_tier_rating_scope_unique'),
+            models.CheckConstraint(condition=Q(tier__in=list('SABCD')), name='movie_tier_value_valid'),
+        ]
