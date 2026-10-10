@@ -7,9 +7,9 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework_api_key.permissions import HasAPIKey
 
-from .movie_serializers import DrawRequest, DismissRequest, AcceptRequest, ProgressRequest, CatalogQuery
+from .movie_serializers import DrawRequest, DismissRequest, AcceptRequest, ProgressRequest, CatalogQuery, TierRequest
 from .repositories import movies
-from .services import movie_catalog, movie_draw, movie_progress
+from .services import movie_catalog, movie_draw, movie_progress, movie_tiers
 from .services.activity_execution import build_scope_key
 
 
@@ -52,6 +52,12 @@ class MovieBase(viewsets.ViewSet):
 
 
 class MovieCollectionViewSet(MovieBase):
+    @action(detail=True, methods=['get', 'patch'], url_path='tiers')
+    def tiers(self, request, pk=None):
+        if request.method == 'GET':
+            return Response(movie_tiers.get_board(self.scope, pk))
+        return Response(movie_tiers.rebalance(self.scope, pk, self.body(TierRequest)))
+
     def list(self, request):
         self.params()
         return self.paginated(movies.collections(),

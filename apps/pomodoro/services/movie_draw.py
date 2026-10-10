@@ -125,6 +125,9 @@ def update_progress(scope, movie, status, expected, data, digest, draw=None):
     else:
         current.version += 1
     current.status = status
+    if status != 'watched':
+        from .movie_tiers import clear_movie
+        clear_movie(scope, movie.pk)
     current.started_at = None if status == 'unwatched' else (current.started_at or now)
     current.watched_at = now if status == 'watched' else None
     movies.save(current)
