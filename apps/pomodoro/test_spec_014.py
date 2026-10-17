@@ -37,6 +37,29 @@ class Spec014Tests(APITestCase):
         renewal = create_period(activity_id=self.activity.id, kind='focus', title='Renovação', starts_on=today + timedelta(days=3), ends_on=today + timedelta(days=4))
         self.assertEqual(renewal.starts_on, today + timedelta(days=3))
 
+    def test_queue_premium_context_survives_start_recovery_and_conflict(self):
+        period = self.period()
+        next_item = self.client.get('/api/activities/next/', {'group_id': self.group.id})
+        self.assertEqual(next_item.status_code, 200)
+        item_id = next_item.data['queue_item_id']
+        started = self.client.post(f'/api/activities/{self.activity.id}/start/',
+            {'queue_item_id': item_id}, format='json')
+        self.assertEqual(started.status_code, 201)
+        recovered = self.client.get('/api/activities/active/')
+        self.assertEqual(recovered.status_code, 200)
+        conflict = self.client.post(f'/api/premium-periods/{period.id}/start/',
+            {'duration_minutes': 30, 'request_id': str(uuid4())}, format='json')
+        self.assertEqual(conflict.status_code, 409)
+        self.assertEqual(conflict.data['code'], 'active_execution_conflict')
+        for execution in (started.data, recovered.data, conflict.data['active_execution']):
+            with self.subTest(execution_id=execution['execution_id']):
+                self.assertEqual(execution['execution_id'], started.data['execution_id'])
+                self.assertEqual(execution['execution_origin'], 'queue')
+                self.assertEqual(execution['queue_item_id'], item_id)
+                self.assertEqual(execution['premium_period_id'], period.id)
+                self.assertIsNone(execution['retro_game_id'])
+                self.assertEqual(execution['activity']['id'], self.activity.id)
+
     def test_direct_start_replay_completion_and_queue_quotas(self):
         period = self.period()
         request_id = str(uuid4())

@@ -20,6 +20,13 @@ Este projeto usa minhas skills pessoais do repositorio `skills_pessoais`.
 - Quando pedir para analisar o frontend ele esta em /home/barscka/workspace/fullstack/frontend_pomodoro_task/
 
 
+## Contrato publico da API
+
+- `docs/API_CONTRACTS.md` e a referencia central e vigente para integracao com o frontend.
+- A partir desta tarefa, toda alteracao que afete o contrato publico da API deve atualizar `docs/API_CONTRACTS.md` na mesma entrega. Isso inclui endpoints, campos de entrada/saida, tipos, obrigatoriedade/null, validacoes, status HTTP, codigos de erro e mudancas de comportamento.
+- Validar a documentacao contra implementacao e testes relevantes; atualizar exemplos, invariantes e historico contratual, sinalizando mudancas incompativeis e orientacoes de migracao.
+- Specs, fixtures, Postman e handoffs sao materiais auxiliares: consolidar ou referenciar seu conteudo sem manter fontes conflitantes com o contrato central.
+
 ## Comandos uteis
 
 ```bash

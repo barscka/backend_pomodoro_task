@@ -1,3 +1,5 @@
+> Suplemento incorporado por referência em [API_CONTRACTS.md](../API_CONTRACTS.md), referência central e vigente. Em divergências, conferir a implementação e atualizar ambos na mesma entrega.
+
 # SPEC-017 — Contrato backend v1
 
 Todas as rotas abaixo usam `/api/` (o mesmo prefixo dos contratos existentes),

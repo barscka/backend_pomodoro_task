@@ -1,5 +1,7 @@
 # Pomodoro Personalizado — Backend
 
+O contrato público vigente está em [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md). Specs, fixtures e Postman abaixo são materiais auxiliares; a matriz de execução e as ressalvas do contrato central prevalecem. Mudanças contratuais devem atualizar essa referência na mesma entrega.
+
 Backend Django/DRF para gerenciamento de atividades, categorias, grupos, agendamentos e históricos do aplicativo Pomodoro.
 
 ## Contratos da API
@@ -395,7 +397,7 @@ python manage.py enrich_goal_completion_facts --dry-run
 python manage.py enrich_goal_completion_facts
 ```
 
-Classifique períodos importados como `paid` quando aplicável. O importador usa `focus` por segurança, pois o legado não registra a natureza do período. Os contratos completos estão em `docs/contracts/spec-014-premium.json` e na coleção Postman.
+Classifique períodos importados como `paid` quando aplicável. O importador usa `focus` por segurança, pois o legado não registra a natureza do período. O contrato vigente está em [API_CONTRACTS.md](docs/API_CONTRACTS.md); `docs/contracts/spec-014-premium.json` e a coleção Postman contêm exemplos auxiliares.
 
 O teste de locks requer uma instância PostgreSQL descartável cujo banco termine em `_test`:
 
